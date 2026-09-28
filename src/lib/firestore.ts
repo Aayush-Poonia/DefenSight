@@ -83,6 +83,7 @@ export type UserProfile = {
   username?: string;
   bio?: string;
   email?: string;
+  photoURL?: string;
   updatedAt?: any;
   createdAt?: any;
 };

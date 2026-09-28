@@ -58,6 +58,11 @@ A centralized threat intelligence repository featuring specialized OSINT tools:
 ### 9. 📜 Scan History (`/history`)
 - **Centralized Security Audit Log**: Filter past scans by tool type, inspect risk scores, and manage history records.
 
+### 10. 👤 Account & Security Management (`/settings` & `/reset-password`)
+- **Profile & Avatar Management**: Upload, preview, and remove custom profile photos with client-side canvas optimization, synced across Cloud Firestore, Firebase Auth, and the sidebar app shell.
+- **In-App Direct Password Change**: Signed-in users can update their account password directly in Settings with real-time password matching feedback and character length indicators.
+- **Forgot Password Email Workflow**: Request password reset emails from the Sign In page (`/login`), direct URL (`/reset-password`), or inside Settings. Includes interactive reset link dispatch acknowledgements and custom URL handling.
+
 ---
 
 ## 🛡️ Fail-Safe Architecture & Offline Fallbacks

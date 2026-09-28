@@ -14,6 +14,7 @@ import PhoneIntelligence from "./pages/PhoneIntelligence";
 import FileScanner from "./pages/FileScanner";
 import Chat from "./pages/Chat";
 import Account from "./pages/Account";
+import ResetPassword from "./pages/ResetPassword";
 import AppShell from "./components/AppShell";
 import { Loader2 } from "lucide-react";
 
@@ -42,6 +43,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/intel" element={<Navigate to="/intel/ip" replace />} />
       <Route path="/intel/ip" element={<ProtectedRoute><IpIntelligence /></ProtectedRoute>} />

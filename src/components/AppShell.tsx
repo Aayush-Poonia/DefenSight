@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, useLocation } from "react-router-dom";
 import { useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   ChevronDown,
   FileSearch,
@@ -58,16 +58,17 @@ const NAV: NavItem[] = [
 ];
 
 export default function AppShell({ children }: { children: ReactNode }) {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [intelOpen, setIntelOpen] = useState(() => location.pathname.startsWith("/intel"));
 
+  const avatarUrl = profile?.photoURL || user?.photoURL || "";
+  const displayName = profile?.fullName || user?.displayName || user?.email || "";
+
   const initials = useMemo(() => {
-    if (!user) return "?";
-    const name = user.displayName || user.email || "";
-    return name.slice(0, 2).toUpperCase();
-  }, [user]);
+    return (displayName || "?").slice(0, 2).toUpperCase();
+  }, [displayName]);
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -157,13 +158,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-sidebar-border bg-sidebar">
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8 transition-transform duration-200 hover:scale-105">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} className="object-cover" />}
               <AvatarFallback className="text-xs bg-sidebar-primary text-sidebar-primary-foreground font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate">
-                {user?.displayName || user?.email}
+                {displayName}
               </div>
             </div>
             <Button

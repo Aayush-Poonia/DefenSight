@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { mapFirebaseError } from "@/lib/firebase-errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,25 +9,6 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { ShieldCheck, Mail, Lock, Loader2, User as UserIcon, AtSign, Eye, EyeOff, AlertCircle } from "lucide-react";
-
-function mapFirebaseError(err: any): string {
-  const code: string = err?.code || "";
-  const map: Record<string, string> = {
-    "auth/invalid-email": "That email address looks invalid.",
-    "auth/user-disabled": "This account has been disabled.",
-    "auth/user-not-found": "No account found with that email.",
-    "auth/wrong-password": "Wrong password. Please try again.",
-    "auth/invalid-credential": "Wrong email or password. Please try again.",
-    "auth/invalid-login-credentials": "Wrong email or password. Please try again.",
-    "auth/email-already-in-use": "An account with this email already exists. Try signing in.",
-    "auth/weak-password": "Password is too weak. Use at least 6 characters.",
-    "auth/popup-closed-by-user": "Google sign-in was cancelled.",
-    "auth/popup-blocked": "Your browser blocked the Google popup. Allow popups and try again.",
-    "auth/network-request-failed": "Network error. Check your internet connection.",
-    "auth/too-many-requests": "Too many attempts. Please wait a minute and try again.",
-  };
-  return map[code] || err?.message || "Something went wrong. Please try again.";
-}
 
 export default function Login() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -147,6 +130,16 @@ export default function Login() {
                 {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
+            {!isSignUp && (
+              <div className="flex justify-end">
+                <Link
+                  to={email.trim() ? `/reset-password?email=${encodeURIComponent(email.trim())}` : "/reset-password"}
+                  className="text-xs text-accent underline-offset-4 hover:underline font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
           </div>
 
           <Button type="submit" className="w-full h-11 mt-2" disabled={loading}>

@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Profile photos storage path: profiles/{userId}/avatar.jpg
+    match /profiles/{userId}/{allPaths=**} {
+      // Any authenticated user can view profile photos
+      allow read: if request.auth != null;
+
+      // Only the account owner can upload, update, or delete their profile picture
+      // Restricts file size to under 5MB and ensures content type is an image
+      allow write, delete: if request.auth != null 
+                            && request.auth.uid == userId
+                            && (request.resource == null || (request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/.*')));
+    }
+
+    // Deny all other storage paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
