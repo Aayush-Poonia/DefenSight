@@ -23,7 +23,7 @@ function createdAtMs(data: DocumentData): number {
 
 // Save a scan (news, phishing, password, email, email_content) to Firestore
 export async function saveScan(userId: string, scanData: {
-  type: "news" | "phishing" | "password" | "email" | "email_content";
+  type: string;
   input: string;
   source?: string;
   result: any;

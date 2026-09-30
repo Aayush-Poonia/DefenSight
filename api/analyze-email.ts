@@ -57,40 +57,45 @@ function extractUrls(text: string): string[] {
   return Array.from(new Set(matches)).slice(0, 25);
 }
 
+const GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
+
 async function callGroq(payload: { from: string; to: string; subject: string; body: string; urls: string[] }) {
   const key = process.env.GROQ_API_KEY;
   if (!key) return fallbackEmailAnalysis(payload);
 
-  try {
-    const userMsg = `From: ${payload.from || "(not provided)"}\nTo: ${payload.to || "(not provided)"}\nSubject: ${payload.subject || "(not provided)"}\n\nBody:\n${payload.body}\n\nExtracted URLs (${payload.urls.length}):\n${payload.urls.map((u) => `- ${u}`).join("\n") || "(none)"}`;
-    const body = {
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMsg },
-      ],
-      tools: [TOOL_DEF],
-      tool_choice: { type: "function", function: { name: "report_email" } },
-    };
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return fallbackEmailAnalysis(payload);
-    const data = await res.json();
-    const tc = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!tc?.function?.arguments) return fallbackEmailAnalysis(payload);
-    const out = JSON.parse(tc.function.arguments);
-    if (!Array.isArray(out.red_flags)) out.red_flags = [];
-    if (!Array.isArray(out.safe_signals)) out.safe_signals = [];
-    if (!Array.isArray(out.suspicious_urls)) out.suspicious_urls = [];
-    if (!Array.isArray(out.recommended_actions)) out.recommended_actions = [];
-    if (typeof out.impersonation_target !== "string") out.impersonation_target = "none";
-    return out;
-  } catch {
-    return fallbackEmailAnalysis(payload);
+  const userMsg = `From: ${payload.from || "(not provided)"}\nTo: ${payload.to || "(not provided)"}\nSubject: ${payload.subject || "(not provided)"}\n\nBody:\n${payload.body}\n\nExtracted URLs (${payload.urls.length}):\n${payload.urls.map((u) => `- ${u}`).join("\n") || "(none)"}`;
+
+  for (const model of GROQ_MODELS) {
+    try {
+      const body = {
+        model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMsg },
+        ],
+        tools: [TOOL_DEF],
+        tool_choice: { type: "function", function: { name: "report_email" } },
+      };
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const tc = data.choices?.[0]?.message?.tool_calls?.[0];
+      if (!tc?.function?.arguments) continue;
+      const out = JSON.parse(tc.function.arguments);
+      if (!Array.isArray(out.red_flags)) out.red_flags = [];
+      if (!Array.isArray(out.safe_signals)) out.safe_signals = [];
+      if (!Array.isArray(out.suspicious_urls)) out.suspicious_urls = [];
+      if (!Array.isArray(out.recommended_actions)) out.recommended_actions = [];
+      if (typeof out.impersonation_target !== "string") out.impersonation_target = "none";
+      return out;
+    } catch {}
   }
+
+  return fallbackEmailAnalysis(payload);
 }
 
 function fallbackEmailAnalysis(payload: { from: string; to: string; subject: string; body: string; urls: string[] }) {

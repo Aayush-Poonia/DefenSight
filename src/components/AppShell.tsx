@@ -76,8 +76,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
         className={`fixed inset-y-0 left-0 z-40 w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border transform transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex items-center gap-2.5 p-5 border-b border-sidebar-border">
-          <div className="h-9 w-9 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center shadow-sm transition-transform duration-300 hover:scale-105">
-            <ShieldCheck className="h-5 w-5 text-accent animate-pulse-slow" />
+          <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 shadow-sm transition-transform duration-300 hover:scale-105">
+            <img src="/logo.png" alt="DefenSight Logo" className="h-full w-full object-cover" />
           </div>
           <div>
             <div className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1">
@@ -189,6 +189,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
+          <img src="/logo.png" alt="DefenSight" className="h-7 w-7 rounded-md object-cover" />
           <span className="font-bold text-sm tracking-tight">DefenSight</span>
         </header>
         <main className="p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">{children}</main>

@@ -392,7 +392,7 @@ export default function EmailAnalyzer() {
             {loading && (
               <Card className="p-12 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                <p className="text-xs text-muted-foreground font-mono">Running deep NLP email audit via Groq Llama-3.3...</p>
+                <p className="text-xs text-muted-foreground font-mono">Running deep NLP email audit via Groq AI Engine...</p>
               </Card>
             )}
 
@@ -786,7 +786,7 @@ function AboutPanel() {
             <span className="font-semibold text-foreground">2. URL Extraction & Link Audit.</span> Pulls all embedded links to check for credential harvest domains, IP hosts, or brand spoofing.
           </li>
           <li>
-            <span className="font-semibold text-foreground">3. LLM Semantic Reasoning.</span> Powered by Groq Llama-3.3-70b to detect urgency tactics, BEC gift-card scams, and wire transfer fraud.
+            <span className="font-semibold text-foreground">3. LLM Semantic Reasoning.</span> Powered by Groq AI Engine to detect urgency tactics, BEC gift-card scams, and wire transfer fraud.
           </li>
           <li>
             <span className="font-semibold text-foreground">4. Risk Calibration.</span> Synthesizes signals into a final score (0-100), red flags list, and actionable recommendations.
