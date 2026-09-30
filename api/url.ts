@@ -1,9 +1,9 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, sendError, setCors } from "./_lib/cors";
-import { settleProvider } from "./_lib/http";
-import { fetchPhishStats } from "./_lib/providers/phishstats";
-import { searchUrlscan } from "./_lib/providers/urlscan";
-import { validateUrl } from "./_lib/validators";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, sendError, setCors } from "./_lib/cors.js";
+import { settleProvider } from "./_lib/http.js";
+import { fetchPhishStats } from "./_lib/providers/phishstats.js";
+import { searchUrlscan } from "./_lib/providers/urlscan.js";
+import { validateUrl } from "./_lib/validators.js";
 
 function str(v: unknown): string | null {
   if (v === undefined || v === null || v === "") return null;
@@ -93,3 +93,4 @@ function asNested(obj: Record<string, unknown>, ...keys: string[]): unknown {
   }
   return cur;
 }
+

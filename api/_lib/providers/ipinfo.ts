@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 export type IpinfoLite = {
   ip?: string;
@@ -20,3 +20,4 @@ export async function fetchIpinfoLite(ip: string): Promise<IpinfoLite> {
   }
   return data;
 }
+

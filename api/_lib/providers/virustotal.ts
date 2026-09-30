@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 function vtHeaders() {
   return { "x-apikey": requireEnv("VIRUSTOTAL_API_KEY") };
@@ -38,3 +38,4 @@ export function vtStats(data: Record<string, unknown>) {
   const total = Object.values(stats).reduce((a, b) => a + Number(b || 0), 0);
   return { malicious, suspicious, total, harmless: Number(stats.harmless || 0) };
 }
+

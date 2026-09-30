@@ -1,14 +1,14 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, sendError, setCors } from "./_lib/cors";
-import { settleProvider } from "./_lib/http";
-import { fetchAbuseIpDb } from "./_lib/providers/abuseipdb";
-import { searchThreatFox } from "./_lib/providers/abusech";
-import { fetchAbstractIp } from "./_lib/providers/abstract";
-import { fetchIpinfoLite } from "./_lib/providers/ipinfo";
-import { fetchOtxIp } from "./_lib/providers/otx";
-import { fetchVirusTotalIp, vtStats } from "./_lib/providers/virustotal";
-import { scoreIp } from "./_lib/threat-score";
-import { validateIp } from "./_lib/validators";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, sendError, setCors } from "./_lib/cors.js";
+import { settleProvider } from "./_lib/http.js";
+import { fetchAbuseIpDb } from "./_lib/providers/abuseipdb.js";
+import { searchThreatFox } from "./_lib/providers/abusech.js";
+import { fetchAbstractIp } from "./_lib/providers/abstract.js";
+import { fetchIpinfoLite } from "./_lib/providers/ipinfo.js";
+import { fetchOtxIp } from "./_lib/providers/otx.js";
+import { fetchVirusTotalIp, vtStats } from "./_lib/providers/virustotal.js";
+import { scoreIp } from "./_lib/threat-score.js";
+import { validateIp } from "./_lib/validators.js";
 
 function asObj(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
@@ -134,7 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       summary: {
         query: ip,
         location: [region, country].filter(Boolean).join(", ") || "Unknown",
-        network: [asn, org].filter(Boolean).join(" — ") || "Unknown",
+        network: [asn, org].filter(Boolean).join(" â€” ") || "Unknown",
         risk_flags: [
           sec.is_vpn ? "vpn" : null,
           sec.is_proxy ? "proxy" : null,
@@ -181,3 +181,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, e);
   }
 }
+

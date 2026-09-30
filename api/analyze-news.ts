@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, setCors } from "./_lib/cors";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, setCors } from "./_lib/cors.js";
 
 const NEWS_SYSTEM_PROMPT = `You are an expert fact-checking analyst trained in NLP-based misinformation detection.
 Analyze the given news article using these signals:
@@ -181,7 +181,7 @@ function fallbackAssistantReply(userMsg: string): string {
   const q = userMsg.trim().toLowerCase();
 
   if (/^(hi|hello|hey|greetings|good morning|good afternoon|good evening|yo)\b/i.test(q)) {
-    return `Hello! 👋 I am **DefenSight AI**, your dedicated AI Security Assistant & Threat Investigator.\n\nI can help you with:\n- **Cybersecurity Q&A** — Ask me about SQL injection, XSS, password hygiene, BEC, 2FA/MFA, VPNs, or code auditing.\n- **Background Threat Scanning** — Ask me to scan a URL, check an email message, audit an attached file, or lookup IP threat scores.\n\nHow can I assist you today?`;
+    return `Hello! ðŸ‘‹ I am **DefenSight AI**, your dedicated AI Security Assistant & Threat Investigator.\n\nI can help you with:\n- **Cybersecurity Q&A** â€” Ask me about SQL injection, XSS, password hygiene, BEC, 2FA/MFA, VPNs, or code auditing.\n- **Background Threat Scanning** â€” Ask me to scan a URL, check an email message, audit an attached file, or lookup IP threat scores.\n\nHow can I assist you today?`;
   }
 
   if (/^(who are you|what are you|what is your name|identify yourself)\b/i.test(q)) {
@@ -193,7 +193,7 @@ function fallbackAssistantReply(userMsg: string): string {
   }
 
   if (/^(what can you do|help|features|capabilities|commands)\b/i.test(q)) {
-    return `## DefenSight AI Capabilities 🛡️\n\n- **Conversational Security Q&A**: Ask about web security, vulnerability fixes, cryptography, or security architecture.\n- **URL Phishing Scans**: Ask to *"scan https://example.com"* to check domain reputation and phishing indicators.\n- **Email Phishing Audits**: Paste an email or email header to check for BEC and wire fraud.\n- **File Scanning**: Attach any file or paste code/logs to scan across VirusTotal, Scanii, and ThreatFox.\n- **IP & Phone Intelligence**: Lookup IP addresses or phone numbers for risk ratings.`;
+    return `## DefenSight AI Capabilities ðŸ›¡ï¸\n\n- **Conversational Security Q&A**: Ask about web security, vulnerability fixes, cryptography, or security architecture.\n- **URL Phishing Scans**: Ask to *"scan https://example.com"* to check domain reputation and phishing indicators.\n- **Email Phishing Audits**: Paste an email or email header to check for BEC and wire fraud.\n- **File Scanning**: Attach any file or paste code/logs to scan across VirusTotal, Scanii, and ThreatFox.\n- **IP & Phone Intelligence**: Lookup IP addresses or phone numbers for risk ratings.`;
   }
 
   if (q.includes("sql injection") || q.includes("sqli")) {
@@ -272,7 +272,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { content, source = "" } = body as { content?: unknown; source?: string };
     if (typeof content !== "string" || content.length < 20 || content.length > 20000) {
       setCors(res);
-      return res.status(400).json({ error: "Content must be 20–20000 chars." });
+      return res.status(400).json({ error: "Content must be 20â€“20000 chars." });
     }
 
     const result = await callGroqNews(content, source);
@@ -284,3 +284,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: e instanceof Error ? e.message : "Unknown error" });
   }
 }
+

@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 export async function searchHybridAnalysisHash(sha256: string) {
   const key = requireEnv("HYBRID_ANALYSIS_API_KEY");
@@ -22,3 +22,4 @@ export async function searchHybridAnalysisHash(sha256: string) {
   }
   return data;
 }
+

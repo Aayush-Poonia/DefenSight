@@ -1,10 +1,10 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, sendError, setCors } from "./_lib/cors";
-import { settleProvider } from "./_lib/http";
-import { fetchAbstractEmail } from "./_lib/providers/abstract";
-import { fetchDisify } from "./_lib/providers/disify";
-import { scoreEmail } from "./_lib/threat-score";
-import { validateEmail } from "./_lib/validators";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, sendError, setCors } from "./_lib/cors.js";
+import { settleProvider } from "./_lib/http.js";
+import { fetchAbstractEmail } from "./_lib/providers/abstract.js";
+import { fetchDisify } from "./_lib/providers/disify.js";
+import { scoreEmail } from "./_lib/threat-score.js";
+import { validateEmail } from "./_lib/validators.js";
 
 function str(v: unknown): string | null {
   if (v === undefined || v === null || v === "") return null;
@@ -123,3 +123,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, e);
   }
 }
+

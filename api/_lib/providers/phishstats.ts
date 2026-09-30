@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 function extractHost(url: string): string {
   try {
@@ -77,3 +77,4 @@ export async function fetchPhishStats(url: string): Promise<{
     query: pathHint,
   };
 }
+

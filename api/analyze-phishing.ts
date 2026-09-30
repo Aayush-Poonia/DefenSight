@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, setCors } from "./_lib/cors";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, setCors } from "./_lib/cors.js";
 
 type WhoisInfo = {
   domain?: string;
@@ -167,15 +167,15 @@ function ruleScore(f: Features) {
   };
   if (!f.https) add(15, "Uses HTTP instead of HTTPS");
   if (f.isIp) add(25, "Uses raw IP address as host");
-  if (f.hasAtSymbol) add(20, "Contains '@' symbol — common URL spoof trick");
+  if (f.hasAtSymbol) add(20, "Contains '@' symbol â€” common URL spoof trick");
   if (f.hasDoubleSlashInPath) add(8, "Path contains '//' redirect pattern");
   if (f.urlLength > 90) add(10, `Unusually long URL (${f.urlLength} chars)`);
   if (f.numHyphens >= 3) add(10, `Many hyphens in host (${f.numHyphens})`);
   if (f.numSubdomains >= 3) add(10, `Deep subdomain nesting (${f.numSubdomains})`);
   if (f.numDigitsHost >= 4) add(8, `Many digits in host (${f.numDigitsHost})`);
   if (f.suspiciousTld) add(15, `Suspicious TLD: .${f.tld}`);
-  if (f.isShortener) add(10, "URL shortener — destination hidden");
-  if (f.punycode) add(15, "Punycode (xn--) host — possible homograph attack");
+  if (f.isShortener) add(10, "URL shortener â€” destination hidden");
+  if (f.punycode) add(15, "Punycode (xn--) host â€” possible homograph attack");
   if (f.brandKeywords.length > 0) add(12, `Brand keyword in URL: ${f.brandKeywords.join(", ")}`);
   if (f.portInUrl) add(6, `Non-standard port (${f.host})`);
   if (f.suspiciousChars > 4) add(6, "Heavy URL-encoding");
@@ -291,7 +291,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const features = extractFeatures(url);
     if (!features) {
       setCors(res);
-      return res.status(400).json({ error: "Invalid URL — please enter a valid web address." });
+      return res.status(400).json({ error: "Invalid URL â€” please enter a valid web address." });
     }
 
     const rule = ruleScore(features);
@@ -315,3 +315,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: e instanceof Error ? e.message : "Unknown error" });
   }
 }
+

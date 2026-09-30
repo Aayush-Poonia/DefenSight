@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 export async function fetchWhoisFreaks(domain: string): Promise<Record<string, unknown>> {
   const key = requireEnv("WHOISFREAKS_API_KEY");
@@ -16,3 +16,4 @@ export async function fetchWhoisFreaks(domain: string): Promise<Record<string, u
   }
   return data;
 }
+

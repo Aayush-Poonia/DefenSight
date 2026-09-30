@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 export async function checkSafeBrowsing(url: string) {
   const key = requireEnv("GOOGLE_SAFE_BROWSING_API_KEY");
@@ -30,3 +30,4 @@ export async function checkSafeBrowsing(url: string) {
     : [];
   return { safe: matches.length === 0, matches, raw: data };
 }
+

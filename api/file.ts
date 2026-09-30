@@ -1,13 +1,13 @@
-import { createHash } from "crypto";
+﻿import { createHash } from "crypto";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, sendError, setCors } from "./_lib/cors";
-import { settleProvider } from "./_lib/http";
-import { lookupMalwareBazaarHash, searchThreatFox } from "./_lib/providers/abusech";
-import { searchHybridAnalysisHash } from "./_lib/providers/hybridanalysis";
-import { scanWithScanii } from "./_lib/providers/scanii";
-import { fetchVirusTotalFile, vtStats } from "./_lib/providers/virustotal";
-import { scoreFile } from "./_lib/threat-score";
-import { validateFilePayload } from "./_lib/validators";
+import { handleCors, sendError, setCors } from "./_lib/cors.js";
+import { settleProvider } from "./_lib/http.js";
+import { lookupMalwareBazaarHash, searchThreatFox } from "./_lib/providers/abusech.js";
+import { searchHybridAnalysisHash } from "./_lib/providers/hybridanalysis.js";
+import { scanWithScanii } from "./_lib/providers/scanii.js";
+import { fetchVirusTotalFile, vtStats } from "./_lib/providers/virustotal.js";
+import { scoreFile } from "./_lib/threat-score.js";
+import { validateFilePayload } from "./_lib/validators.js";
 
 export const config = {
   api: {
@@ -140,3 +140,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, e);
   }
 }
+

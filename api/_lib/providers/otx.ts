@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 function otxHeaders() {
   return { "X-OTX-API-KEY": requireEnv("ALIENVAULT_OTX_API_KEY") };
@@ -32,3 +32,4 @@ export async function fetchOtxUrl(url: string) {
   if (!res.ok) throw new ApiError(`OTX URL HTTP ${res.status}`, res.status === 429 ? 429 : 502);
   return data as Record<string, unknown>;
 }
+

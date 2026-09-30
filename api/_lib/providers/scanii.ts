@@ -1,4 +1,4 @@
-import { ApiError, optionalEnv, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, optionalEnv, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 function scaniiCredentials(): { key: string; secret: string } {
   const rawKey = requireEnv("SCANII_API_KEY");
@@ -66,7 +66,7 @@ export async function scanWithScanii(
 
       if (res.status === 401 || res.status === 403) {
         throw new ApiError(
-          "Scanii authentication failed — check SCANII_API_KEY and SCANII_API_SECRET.",
+          "Scanii authentication failed â€” check SCANII_API_KEY and SCANII_API_SECRET.",
           502,
         );
       }
@@ -84,3 +84,4 @@ export async function scanWithScanii(
 
   throw new ApiError(lastError, 502);
 }
+

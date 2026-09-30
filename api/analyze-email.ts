@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, setCors } from "./_lib/cors";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, setCors } from "./_lib/cors.js";
 
 const SYSTEM_PROMPT = `You are an expert phishing-email analyst. Inspect the email's headers (from, subject), body text, and any URLs.
 Look for:
@@ -180,3 +180,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(502).json({ error: e instanceof Error ? e.message : "Unknown error" });
   }
 }
+

@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 function abuseChHeaders() {
   return { "Auth-Key": requireEnv("ABUSE_CH_API_KEY"), "Content-Type": "application/json" };
@@ -36,3 +36,4 @@ export async function lookupUrlhaus(url: string) {
   if (!res.ok) throw new ApiError(`URLhaus HTTP ${res.status}`, res.status === 429 ? 429 : 502);
   return data as Record<string, unknown>;
 }
+

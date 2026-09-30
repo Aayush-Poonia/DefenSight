@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 export async function fetchAbstractIp(ip: string): Promise<Record<string, unknown>> {
   const key = requireEnv("ABSTRACT_IP_API_KEY");
@@ -48,3 +48,4 @@ export async function fetchAbstractEmail(email: string): Promise<Record<string, 
   }
   return data;
 }
+

@@ -1,15 +1,15 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, sendError, setCors } from "./_lib/cors";
-import { settleProvider } from "./_lib/http";
-import { lookupUrlhaus, searchThreatFox } from "./_lib/providers/abusech";
-import { fetchOtxDomain, fetchOtxUrl } from "./_lib/providers/otx";
-import { fetchPhishStats } from "./_lib/providers/phishstats";
-import { checkSafeBrowsing } from "./_lib/providers/safebrowsing";
-import { submitAndFetchUrlscan } from "./_lib/providers/urlscan";
-import { fetchVirusTotalUrl, vtStats } from "./_lib/providers/virustotal";
-import { fetchWhoisFreaks } from "./_lib/providers/whoisfreaks";
-import { scorePhish } from "./_lib/threat-score";
-import { validateUrl } from "./_lib/validators";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, sendError, setCors } from "./_lib/cors.js";
+import { settleProvider } from "./_lib/http.js";
+import { lookupUrlhaus, searchThreatFox } from "./_lib/providers/abusech.js";
+import { fetchOtxDomain, fetchOtxUrl } from "./_lib/providers/otx.js";
+import { fetchPhishStats } from "./_lib/providers/phishstats.js";
+import { checkSafeBrowsing } from "./_lib/providers/safebrowsing.js";
+import { submitAndFetchUrlscan } from "./_lib/providers/urlscan.js";
+import { fetchVirusTotalUrl, vtStats } from "./_lib/providers/virustotal.js";
+import { fetchWhoisFreaks } from "./_lib/providers/whoisfreaks.js";
+import { scorePhish } from "./_lib/threat-score.js";
+import { validateUrl } from "./_lib/validators.js";
 
 function str(v: unknown): string | null {
   if (v === undefined || v === null || v === "") return null;
@@ -198,7 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recommendations.push("Compare registrar and age against the brand being impersonated.");
     } else {
       recommendations.push("No strong phishing indicators from correlated threat feeds.");
-      recommendations.push("Continue monitoring — absence of hits is not a guarantee of safety.");
+      recommendations.push("Continue monitoring â€” absence of hits is not a guarantee of safety.");
     }
 
     const result = {
@@ -261,3 +261,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, e);
   }
 }
+

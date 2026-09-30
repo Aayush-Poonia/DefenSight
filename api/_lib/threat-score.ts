@@ -1,4 +1,4 @@
-export {
+﻿export {
   buildThreat,
   clampScore,
   riskFromScore,
@@ -10,4 +10,5 @@ export {
   type RiskLevel,
   type ScoreBreakdownItem,
   type ThreatScore,
-} from "../../src/lib/threat-score";
+} from "../../src/lib/threat-score.js";
+

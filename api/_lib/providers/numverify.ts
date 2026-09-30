@@ -1,4 +1,4 @@
-import { ApiError, optionalEnv, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, optionalEnv, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 /** Numverify / APILayer Number Verification */
 export async function fetchNumverify(phone: string): Promise<Record<string, unknown>> {
@@ -50,3 +50,4 @@ export async function fetchNumverify(phone: string): Promise<Record<string, unkn
     `Numverify HTTP ${res.status}`;
   throw new ApiError(String(msg), res.status === 429 ? 429 : 502);
 }
+

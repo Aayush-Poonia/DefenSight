@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 export async function fetchAbuseIpDb(ip: string) {
   const key = requireEnv("ABUSEIPDB_API_KEY");
@@ -15,3 +15,4 @@ export async function fetchAbuseIpDb(ip: string) {
   }
   return data;
 }
+

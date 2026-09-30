@@ -1,10 +1,10 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, sendError, setCors } from "./_lib/cors";
-import { settleProvider } from "./_lib/http";
-import { fetchAbstractPhone } from "./_lib/providers/abstract";
-import { fetchNumverify } from "./_lib/providers/numverify";
-import { scorePhone } from "./_lib/threat-score";
-import { validatePhone } from "./_lib/validators";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, sendError, setCors } from "./_lib/cors.js";
+import { settleProvider } from "./_lib/http.js";
+import { fetchAbstractPhone } from "./_lib/providers/abstract.js";
+import { fetchNumverify } from "./_lib/providers/numverify.js";
+import { scorePhone } from "./_lib/threat-score.js";
+import { validatePhone } from "./_lib/validators.js";
 
 function str(v: unknown): string | null {
   if (v === undefined || v === null || v === "") return null;
@@ -128,7 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         is_voip: isVoip,
         line_status: str(phoneVal.line_status),
         timezone: str(phoneLoc.timezone),
-        note: "Validation & carrier enrichment only — APIs do not provide scam reputation.",
+        note: "Validation & carrier enrichment only â€” APIs do not provide scam reputation.",
       },
       sources: {
         numverify: numverify.ok ? { ok: true } : { error: numverify.error },
@@ -143,3 +143,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, e);
   }
 }
+

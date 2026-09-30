@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { handleCors, sendError, setCors } from "./_lib/cors";
-import { fetchWhoisFreaks } from "./_lib/providers/whoisfreaks";
-import { validateDomain } from "./_lib/validators";
+﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { handleCors, sendError, setCors } from "./_lib/cors.js";
+import { fetchWhoisFreaks } from "./_lib/providers/whoisfreaks.js";
+import { validateDomain } from "./_lib/validators.js";
 
 function str(v: unknown): string | null {
   if (v === undefined || v === null || v === "") return null;
@@ -88,3 +88,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, e);
   }
 }
+

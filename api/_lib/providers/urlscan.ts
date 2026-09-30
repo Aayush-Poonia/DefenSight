@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 const HEADERS = (key: string) => ({
   "API-Key": key,
@@ -123,7 +123,7 @@ export async function submitAndFetchUrlscan(url: string): Promise<{
     searchError = e instanceof Error ? e.message : "urlscan search failed";
   }
 
-  // No historical scan — submit a new one
+  // No historical scan â€” submit a new one
   const submit = await safeFetch(
     "https://urlscan.io/api/v1/scan/",
     {
@@ -161,13 +161,14 @@ export async function submitAndFetchUrlscan(url: string): Promise<{
     }
   }
 
-  // Scan queued — return uuid + screenshot URL even if result not ready yet
+  // Scan queued â€” return uuid + screenshot URL even if result not ready yet
   return {
     uuid,
     screenshot: `https://urlscan.io/screenshots/${uuid}.png`,
     result: null,
     search,
     status: "pending",
-    message: "Scan submitted — full result still processing on urlscan.io",
+    message: "Scan submitted â€” full result still processing on urlscan.io",
   };
 }
+

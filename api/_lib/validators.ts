@@ -1,4 +1,4 @@
-import { ApiError } from "./http";
+﻿import { ApiError } from "./http.js";
 
 const IPV4 =
   /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d?\d)$/;
@@ -23,7 +23,7 @@ export function validatePhone(raw: unknown): string {
     phone = phone.replace(/[^\d+]/g, "");
   }
   if (!/^\+?\d{7,15}$/.test(phone)) {
-    throw new ApiError("Invalid phone number — use digits with optional country code (+)", 400);
+    throw new ApiError("Invalid phone number â€” use digits with optional country code (+)", 400);
   }
   return phone;
 }
@@ -88,3 +88,4 @@ export function validateFilePayload(body: {
 
   return { filename, buffer, contentType };
 }
+

@@ -1,4 +1,4 @@
-import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http";
+﻿import { ApiError, parseJsonSafe, requireEnv, safeFetch } from "../http.js";
 
 export async function fetchDisify(email: string): Promise<Record<string, unknown>> {
   const key = requireEnv("DISIFY_API_KEY");
@@ -17,3 +17,4 @@ export async function fetchDisify(email: string): Promise<Record<string, unknown
   }
   return data;
 }
+
