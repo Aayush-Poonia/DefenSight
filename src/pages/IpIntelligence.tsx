@@ -67,7 +67,7 @@ export default function IpIntelligence() {
               IP <span className="italic text-accent">Intelligence</span>.
             </h1>
             <p className="mt-4 text-base text-muted-foreground max-w-2xl leading-relaxed">
-              Query IPinfo, Abstract, VirusTotal, AbuseIPDB, OTX, and ThreatFox to construct a unified routing, reputation, and threat profile.
+              Query MaxMind GeoIP, Censys, IPinfo, Abstract, VirusTotal, AbuseIPDB, AlienVault OTX, and ThreatFox to construct a unified routing, reputation, and threat profile.
             </p>
           </div>
         </div>

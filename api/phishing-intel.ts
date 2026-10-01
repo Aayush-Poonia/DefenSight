@@ -1,7 +1,10 @@
-﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import dns from "node:dns/promises";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { handleCors, sendError, setCors } from "./_lib/cors.js";
 import { settleProvider } from "./_lib/http.js";
 import { lookupUrlhaus, searchThreatFox } from "./_lib/providers/abusech.js";
+import { fetchCensysHost } from "./_lib/providers/censys.js";
+import { fetchMaxMindGeoIp } from "./_lib/providers/maxmind.js";
 import { fetchOtxDomain, fetchOtxUrl } from "./_lib/providers/otx.js";
 import { fetchPhishStats } from "./_lib/providers/phishstats.js";
 import { checkSafeBrowsing } from "./_lib/providers/safebrowsing.js";
@@ -38,6 +41,15 @@ function extractDomain(url: string): string {
   return host;
 }
 
+async function resolveDomainIp(domain: string): Promise<string | null> {
+  try {
+    const ips = await dns.resolve4(domain);
+    return ips && ips[0] ? ips[0] : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return;
 
@@ -45,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = validateUrl(req.body?.url);
     const domain = extractDomain(url);
 
-    const [phish, whois, urlscan, safeBrowsing, vt, urlhaus, otxUrl, otxDomain, tfox] =
+    const [phish, whois, urlscan, safeBrowsing, vt, urlhaus, otxUrl, otxDomain, tfox, resolvedIpByDns] =
       await Promise.all([
         settleProvider("phishstats", () => fetchPhishStats(url)),
         settleProvider("whoisfreaks", () => fetchWhoisFreaks(domain)),
@@ -56,6 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         settleProvider("otx_url", () => fetchOtxUrl(url)),
         settleProvider("otx_domain", () => fetchOtxDomain(domain)),
         settleProvider("threatfox", () => searchThreatFox(url)),
+        resolveDomainIp(domain),
       ]);
 
     const whoisRaw = (whois.ok && whois.data) ? whois.data : {};
@@ -137,6 +150,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tfoxData = Array.isArray(tfoxRaw.data) ? tfoxRaw.data : [];
     const threatFoxHits = tfoxData.length;
 
+    const targetIp = resolvedIpByDns || str(page.ip);
+    const [censys, maxmind] = targetIp
+      ? await Promise.all([
+          settleProvider("censys", () => fetchCensysHost(targetIp)),
+          settleProvider("maxmind", () => fetchMaxMindGeoIp(targetIp)),
+        ])
+      : [
+          { ok: false as const, error: "No target IP resolved for domain", provider: "censys" },
+          { ok: false as const, error: "No target IP resolved for domain", provider: "maxmind" },
+        ];
+
+    const censysRaw = censys.ok ? censys.data : null;
+    const censysServicesCount = censysRaw?.service_count ?? censysRaw?.open_ports?.length ?? 0;
+    const censysHasRiskyPorts = Boolean(censysRaw?.has_risky_ports);
+    const censysRiskyPorts = censysRaw?.risky_ports_found ?? [];
+
+    const maxmindRaw = maxmind.ok ? maxmind.data : null;
+
     const technologies: string[] = [];
     const labels = Array.isArray(lists.labels) ? lists.labels : [];
     for (const l of labels) if (typeof l === "string") technologies.push(l);
@@ -144,6 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const s of servers) if (typeof s === "string") technologies.push(s);
     if (page.server && typeof page.server === "string") technologies.push(page.server);
     if (stats.uniqIPs != null) technologies.push(`${stats.uniqIPs} unique IPs`);
+    if (censysServicesCount > 0) technologies.push(`Censys: ${censysServicesCount} ports detected`);
 
     const redirect_chain: string[] = [];
     const requests = Array.isArray(usResult.requests) ? (usResult.requests as Record<string, unknown>[]) : [];
@@ -172,6 +204,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       urlhausListed,
       otxPulses,
       threatFoxHits,
+      censysHasRiskyPorts,
+      censysRiskyPorts,
+      censysServicesCount,
     });
 
     let phishing_status: "clean" | "suspicious" | "phishing" = "clean";
@@ -235,12 +270,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         page_ip: str(page.ip),
         country: str(page.country),
       },
+      censys: censysRaw
+        ? {
+            target_ip: targetIp,
+            service_count: censysServicesCount,
+            open_ports: censysRaw.open_ports,
+            risky_ports: censysRiskyPorts,
+            reverse_dns: censysRaw.reverse_dns,
+            asn: censysRaw.autonomous_system?.asn,
+            asn_name: censysRaw.autonomous_system?.name,
+          }
+        : null,
+      maxmind: maxmindRaw
+        ? {
+            target_ip: targetIp,
+            country: maxmindRaw.country,
+            city: maxmindRaw.city,
+            region: maxmindRaw.region,
+            asn: maxmindRaw.asn,
+            asn_organization: maxmindRaw.asn_organization,
+            security: maxmindRaw.security,
+          }
+        : null,
       intel: {
         safe_browsing: { hit: safeBrowsingHit },
         virustotal: { malicious: vtS.malicious, total: vtS.total },
         urlhaus: { listed: urlhausListed },
         otx: { pulses: otxPulses },
         threatfox: { hits: threatFoxHits },
+        censys: censysRaw
+          ? {
+              target_ip: targetIp,
+              service_count: censysServicesCount,
+              open_ports: censysRaw.open_ports,
+              risky_ports: censysRiskyPorts,
+              asn_name: censysRaw.autonomous_system?.name,
+            }
+          : null,
+        maxmind: maxmindRaw
+          ? {
+              target_ip: targetIp,
+              country: maxmindRaw.country,
+              city: maxmindRaw.city,
+              asn_organization: maxmindRaw.asn_organization,
+            }
+          : null,
       },
       provider_errors: {
         phishstats: phish.ok ? null : phish.error,
@@ -251,6 +325,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         urlhaus: urlhaus.ok ? null : urlhaus.error,
         otx: otxUrl.ok || otxDomain.ok ? null : otxUrl.error || otxDomain.error,
         threatfox: tfox.ok ? null : tfox.error,
+        censys: censys.ok ? null : censys.error,
+        maxmind: maxmind.ok ? null : maxmind.error,
       },
     };
 

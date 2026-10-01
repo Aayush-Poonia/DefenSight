@@ -26,6 +26,12 @@ const SERVER_ENV_KEYS = [
   "HYBRID_ANALYSIS_API_KEY",
   "GOOGLE_SAFE_BROWSING_API_KEY",
   "ABUSE_CH_API_KEY",
+  "CENSYS_API_KEY",
+  "CENSYS_PAT",
+  "CENSYS_API_ID",
+  "CENSYS_API_SECRET",
+  "MAXMIND_ACCOUNT_ID",
+  "MAXMIND_LICENSE_KEY",
 ] as const;
 
 export default defineConfig(({ mode }) => {

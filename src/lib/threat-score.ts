@@ -77,6 +77,9 @@ export function scoreIp(input: {
   vtTotal?: number;
   otxPulses?: number;
   threatFoxHits?: number;
+  censysServicesCount?: number;
+  censysHasRiskyPorts?: boolean;
+  censysRiskyPorts?: number[];
 }): ThreatScore {
   const breakdown: ScoreBreakdownItem[] = [];
   if (input.is_tor) breakdown.push({ factor: "TOR exit node", points: 45 });
@@ -107,6 +110,19 @@ export function scoreIp(input: {
     breakdown.push({
       factor: `ThreatFox IOC match (${input.threatFoxHits})`,
       points: Math.min(40, 25 + input.threatFoxHits * 5),
+    });
+  }
+  if (input.censysHasRiskyPorts) {
+    const portsStr = input.censysRiskyPorts?.length ? input.censysRiskyPorts.join(", ") : "RDP/DB/SSH/FTP";
+    breakdown.push({
+      factor: `Censys exposed risky port(s) (${portsStr})`,
+      points: Math.min(35, 18 + (input.censysRiskyPorts?.length || 1) * 5),
+    });
+  }
+  if (typeof input.censysServicesCount === "number" && input.censysServicesCount > 10) {
+    breakdown.push({
+      factor: `Censys high service exposure (${input.censysServicesCount} ports open)`,
+      points: 12,
     });
   }
   return buildThreat(breakdown, 8);
@@ -213,6 +229,9 @@ export function scorePhish(input: {
   urlhausListed?: boolean;
   otxPulses?: number;
   threatFoxHits?: number;
+  censysHasRiskyPorts?: boolean;
+  censysRiskyPorts?: number[];
+  censysServicesCount?: number;
 }): ThreatScore {
   const breakdown: ScoreBreakdownItem[] = [];
   if (input.inPhishDb) {
@@ -258,6 +277,13 @@ export function scorePhish(input: {
     breakdown.push({
       factor: `ThreatFox IOC match (${input.threatFoxHits})`,
       points: Math.min(35, 20 + input.threatFoxHits * 5),
+    });
+  }
+  if (input.censysHasRiskyPorts) {
+    const portsStr = input.censysRiskyPorts?.length ? input.censysRiskyPorts.join(", ") : "management/DB";
+    breakdown.push({
+      factor: `Censys: Host exposes risky management port(s) (${portsStr})`,
+      points: Math.min(25, 15 + (input.censysRiskyPorts?.length || 1) * 4),
     });
   }
   if (input.manyRedirects) {

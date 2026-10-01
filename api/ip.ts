@@ -1,10 +1,12 @@
-﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { handleCors, sendError, setCors } from "./_lib/cors.js";
 import { settleProvider } from "./_lib/http.js";
 import { fetchAbuseIpDb } from "./_lib/providers/abuseipdb.js";
 import { searchThreatFox } from "./_lib/providers/abusech.js";
 import { fetchAbstractIp } from "./_lib/providers/abstract.js";
+import { fetchCensysHost } from "./_lib/providers/censys.js";
 import { fetchIpinfoLite } from "./_lib/providers/ipinfo.js";
+import { fetchMaxMindGeoIp } from "./_lib/providers/maxmind.js";
 import { fetchOtxIp } from "./_lib/providers/otx.js";
 import { fetchVirusTotalIp, vtStats } from "./_lib/providers/virustotal.js";
 import { scoreIp } from "./_lib/threat-score.js";
@@ -32,13 +34,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const ip = validateIp(req.body?.ip ?? req.body?.ip_address);
-    const [ipinfo, abstract, vt, abuse, otx, tfox] = await Promise.all([
+    const [ipinfo, abstract, vt, abuse, otx, tfox, censys, maxmind] = await Promise.all([
       settleProvider("ipinfo_lite", () => fetchIpinfoLite(ip)),
       settleProvider("abstract_ip", () => fetchAbstractIp(ip)),
       settleProvider("virustotal", () => fetchVirusTotalIp(ip)),
       settleProvider("abuseipdb", () => fetchAbuseIpDb(ip)),
       settleProvider("otx", () => fetchOtxIp(ip)),
       settleProvider("threatfox", () => searchThreatFox(ip)),
+      settleProvider("censys", () => fetchCensysHost(ip)),
+      settleProvider("maxmind", () => fetchMaxMindGeoIp(ip)),
     ]);
 
     const lite = (ipinfo.ok && ipinfo.data) ? ipinfo.data : {};
@@ -63,50 +67,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tfoxData = Array.isArray(tfoxRaw.data) ? tfoxRaw.data : [];
     const threatFoxHits = tfoxData.length;
 
+    const censysRaw = (censys.ok && censys.data) ? censys.data : null;
+    const censysServicesCount = censysRaw?.service_count ?? censysRaw?.open_ports?.length ?? 0;
+    const censysHasRiskyPorts = Boolean(censysRaw?.has_risky_ports);
+    const censysRiskyPorts = censysRaw?.risky_ports_found ?? [];
+
+    const maxmindRaw = (maxmind.ok && maxmind.data) ? maxmind.data : null;
+    const maxmindSec = maxmindRaw?.security ?? {
+      is_anonymous: false,
+      is_anonymous_vpn: false,
+      is_anonymous_proxy: false,
+      is_tor: false,
+      is_hosting: false,
+      is_satellite: false,
+    };
+
     const country =
       (lite.country as string) ||
       (location.country as string) ||
       (location.country_code as string) ||
       (abs.country as string) ||
+      maxmindRaw?.country ||
+      censysRaw?.location?.country ||
       null;
     const region =
       (location.region as string) ||
       (location.region_iso_code as string) ||
       (abs.region as string) ||
+      maxmindRaw?.region ||
+      censysRaw?.location?.province ||
       null;
     const asn =
       (lite.asn as string) ||
       (asnObj.asn as string) ||
       (abs.autonomous_system_number as string) ||
+      (maxmindRaw?.asn ? `AS${maxmindRaw.asn}` : null) ||
+      (censysRaw?.autonomous_system?.asn ? `AS${censysRaw.autonomous_system.asn}` : null) ||
       null;
     const org =
       (lite.as_name as string) ||
       (company.name as string) ||
       (asnObj.name as string) ||
       (abs.isp as string) ||
+      maxmindRaw?.asn_organization ||
+      censysRaw?.autonomous_system?.name ||
       null;
     const hosting =
       security.is_hosting === true ||
       security.hosting === true ||
-      abs.is_hosting === true;
+      abs.is_hosting === true ||
+      maxmindSec.is_hosting === true;
     const ipType = hosting
       ? "hosting"
       : security.is_mobile || abs.is_mobile
         ? "mobile"
-        : security.is_vpn || security.vpn
+        : security.is_vpn || security.vpn || maxmindSec.is_anonymous_vpn
           ? "vpn"
           : "residential/unknown";
 
     const sec = {
-      is_vpn: Boolean(security.is_vpn ?? security.vpn ?? abs.is_vpn),
-      is_proxy: Boolean(security.is_proxy ?? security.proxy ?? abs.is_proxy),
-      is_tor: Boolean(security.is_tor ?? security.tor ?? abs.is_tor),
+      is_vpn: Boolean(security.is_vpn ?? security.vpn ?? abs.is_vpn ?? maxmindSec.is_anonymous_vpn),
+      is_proxy: Boolean(security.is_proxy ?? security.proxy ?? abs.is_proxy ?? maxmindSec.is_anonymous_proxy),
+      is_tor: Boolean(security.is_tor ?? security.tor ?? abs.is_tor ?? maxmindSec.is_tor),
       is_hosting: Boolean(hosting),
       is_abuse: Boolean(
         security.is_abuse ?? security.abuse ?? abs.is_abuse ?? (abuseConfidence != null && abuseConfidence >= 25),
       ),
       is_relay: Boolean(security.is_relay ?? security.relay),
       is_mobile: Boolean(security.is_mobile ?? abs.is_mobile),
+      has_risky_open_ports: censysHasRiskyPorts,
     };
 
     const threat = scoreIp({
@@ -116,6 +145,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       vtTotal: vtS.total,
       otxPulses,
       threatFoxHits,
+      censysServicesCount,
+      censysHasRiskyPorts,
+      censysRiskyPorts,
     });
 
     const result = {
@@ -145,6 +177,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           vtS.malicious > 0 ? "virustotal" : null,
           otxPulses > 0 ? "otx" : null,
           threatFoxHits > 0 ? "threatfox" : null,
+          censysHasRiskyPorts ? "censys_exposed_ports" : null,
         ].filter(Boolean),
         assessment: threat.reasons[0] || "No major anonymity/abuse flags from available sources",
       },
@@ -163,6 +196,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         otx: { pulses: otxPulses, reputation: num(otxRaw.reputation) },
         threatfox: { hits: threatFoxHits },
+        censys: censysRaw
+          ? {
+              service_count: censysServicesCount,
+              open_ports: censysRaw.open_ports,
+              risky_ports: censysRiskyPorts,
+              reverse_dns: censysRaw.reverse_dns,
+              asn: censysRaw.autonomous_system?.asn,
+              asn_name: censysRaw.autonomous_system?.name,
+              services: censysRaw.services,
+            }
+          : null,
+        maxmind: maxmindRaw
+          ? {
+              country: maxmindRaw.country,
+              country_code: maxmindRaw.country_code,
+              city: maxmindRaw.city,
+              region: maxmindRaw.region,
+              continent: maxmindRaw.continent,
+              timezone: maxmindRaw.timezone,
+              latitude: maxmindRaw.latitude,
+              longitude: maxmindRaw.longitude,
+              accuracy_radius: maxmindRaw.accuracy_radius,
+              asn: maxmindRaw.asn,
+              asn_organization: maxmindRaw.asn_organization,
+              network: maxmindRaw.network,
+              security: maxmindRaw.security,
+            }
+          : null,
       },
       sources: {
         ipinfo: ipinfo.ok ? { ok: true } : { error: ipinfo.error },
@@ -171,6 +232,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         abuseipdb: abuse.ok ? { ok: true } : { error: abuse.error },
         otx: otx.ok ? { ok: true } : { error: otx.error },
         threatfox: tfox.ok ? { ok: true } : { error: tfox.error },
+        censys: censys.ok ? { ok: true } : { error: censys.error },
+        maxmind: maxmind.ok ? { ok: true } : { error: maxmind.error },
       },
     };
 

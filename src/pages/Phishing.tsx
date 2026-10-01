@@ -84,7 +84,7 @@ export default function Phishing() {
           <Globe className="h-7 w-7" /> URL Investigation
         </h1>
         <p className="text-muted-foreground mt-1">
-          URLScan, Safe Browsing, VirusTotal, PhishStats, WHOIS, URLhaus, OTX, and ThreatFox
+          Censys Host Intel, URLScan, Safe Browsing, VirusTotal, PhishStats, WHOIS, URLhaus, OTX, and ThreatFox
         </p>
       </div>
 

@@ -2,7 +2,7 @@
 
 **DefenSight** is an enterprise-grade, AI-powered cybersecurity SaaS application built with **React 19**, **Vite 7**, **Tailwind CSS v4**, **Groq AI (Llama-3.3-70B)**, and **Firebase Authentication & Firestore**.
 
-It combines real-time threat intelligence, AI fake news detection, phishing email auditing, URL investigation, password security, an AI assistant chat interface, PDF report generation, and cloud-synced scan history into a unified platform.
+It combines real-time threat intelligence, multi-feed OSINT correlation (**Censys**, **MaxMind GeoIP**, **VirusTotal**, **AbuseIPDB**, **AlienVault OTX**, **ThreatFox**, **URLhaus**, **PhishStats**, **Google Safe Browsing**), AI fake news detection, phishing email auditing, URL investigation, password security, an AI assistant chat interface, PDF report generation, and cloud-synced scan history into a unified platform.
 
 ---
 
@@ -16,16 +16,20 @@ It combines real-time threat intelligence, AI fake news detection, phishing emai
 
 ### 2. 📡 Intel Hub (`/intel`)
 A centralized threat intelligence repository featuring specialized OSINT tools:
-- **IP Intelligence** (`/intel/ip`): Geolocation, ISP, ASN lookup, VPN/Proxy/Tor/Hosting provider classification, and multi-feed abuse scoring.
+- **IP Intelligence** (`/intel/ip`):
+  - **MaxMind GeoIP2 & GeoLite2**: High-precision geolocation (Country, State/Province, City, Continent, Coordinates, Timezone), ASN organization, and anonymity risk traits (`is_anonymous_vpn`, `is_anonymous_proxy`, `is_tor`, `is_hosting`).
+  - **Censys Host Asset Intelligence**: Real-time port discovery (detecting exposed HTTP, HTTPS, SSH, RDP, FTP, Telnet, database management ports), service count, reverse DNS resolution, and infrastructure risk flags.
+  - **Multi-Feed Correlation**: Correlates IP reputation across **AbuseIPDB**, **VirusTotal**, **AlienVault OTX**, **ThreatFox**, **IPinfo**, and **Abstract API**.
 - **Phone Intelligence** (`/intel/phone`): International phone number validation, carrier identification, and line-type detection (VOIP vs Mobile vs Landline).
-- **File Scanner** (`/intel/file`): Instant SHA256 checksum generation, static file magic-byte inspection, file size profiling, and entropy analysis.
+- **File Scanner** (`/intel/file`): Instant SHA256 checksum generation, static file magic-byte inspection, file size profiling, VirusTotal, Hybrid Analysis, MalwareBazaar, ThreatFox, and Scanii anti-malware engine.
 - **Email Lookup** (`/intel/email`): Email deliverability verification, MX record checks, and disposable email domain detection.
 
 ### 3. 🌐 PhishGuard URL Scanner (`/phishing`)
+- **Target Host Inspection**: Correlates domain host server infrastructure with **Censys** (open ports & management services) and **MaxMind GeoIP** (hosting location, ASN, and server anonymity traits).
 - **Visual Website Screenshot**: Displays visual website snapshots via Microlink with automated fallback rendering (`s-shot.ru`).
 - **Domain & WHOIS Intelligence**: Domain age calculation, registrar identification, registration/expiration dates, and nameserver lookup.
-- **Threat Correlation**: Correlates threat indicators across VirusTotal, Safe Browsing, PhishStats, URLhaus, AlienVault OTX, and ThreatFox.
-- **Risk Factor Breakdown**: Transparent scoring model highlighting punycode URLs, IP hostnames, brand impersonation, and redirect chains.
+- **Multi-Source Threat Correlation**: Correlates threat indicators across **VirusTotal**, **Google Safe Browsing**, **PhishStats**, **URLhaus**, **AlienVault OTX**, **ThreatFox**, and **urlscan.io**.
+- **Risk Factor Breakdown**: Transparent scoring model highlighting punycode URLs, IP hostnames, brand impersonation, risky management ports, and redirect chains.
 
 ### 4. 📧 Email Analyzer (`/email`)
 - **AI Phishing Email Audit**: Powered by **Groq Llama-3.3-70B** to detect Business Email Compromise (BEC), gift card fraud, direct deposit scams, and credential harvesting emails.
@@ -68,7 +72,7 @@ A centralized threat intelligence repository featuring specialized OSINT tools:
 ## 🛡️ Fail-Safe Architecture & Offline Fallbacks
 
 DefenSight is designed with **zero-crash reliability**:
-- **API Key Independence**: If any third-party API key (Groq, VirusTotal, Scanii, Abstract, AbuseIPDB, WhoisFreaks) is missing or rate-limited, DefenSight **never crashes or returns 502/500 errors**.
+- **API Key Independence**: If any third-party API key (Groq, Censys, MaxMind, VirusTotal, Scanii, Abstract, AbuseIPDB, WhoisFreaks) is missing or rate-limited, DefenSight **never crashes or returns 502/500 errors**.
 - **Local Heuristics Engine**: Seamlessly falls back to built-in local heuristics for IP subnets, carrier prefixes, email MX formats, static file entropy, URL pattern scoring, and NLP news/email analysis.
 
 ---
@@ -85,6 +89,7 @@ DefenSight is designed with **zero-crash reliability**:
 | **Authentication & Cloud DB** | Firebase Authentication + Cloud Firestore |
 | **Backend API Server** | Node.js / Connect API Dev Middleware + Vercel Serverless Functions (`api/`) |
 | **AI LLM Engine** | Groq API (`llama-3.3-70b-versatile`) |
+| **Threat Intelligence Feeds** | Censys, MaxMind GeoIP2, VirusTotal, AbuseIPDB, AlienVault OTX, ThreatFox, URLhaus, MalwareBazaar, PhishStats, Google Safe Browsing, WhoisFreaks |
 | **Visual Screenshot Engine** | Microlink API + `urlscan.io` + `s-shot.ru` fallback |
 
 ---
@@ -95,12 +100,19 @@ DefenSight is designed with **zero-crash reliability**:
 .
 ├── api/                           # Vercel Serverless API Functions
 │   ├── _lib/                      # Shared HTTP helpers, cors, threat scoring & providers
+│   │   └── providers/             # Threat providers (Censys, MaxMind, VT, AbuseIPDB, OTX, etc.)
+│   │       ├── censys.ts          # Censys Search & Platform API v3 host asset scanner
+│   │       ├── maxmind.ts         # MaxMind GeoIP2 & GeoLite2 Web Service provider
+│   │       ├── abuseipdb.ts       # AbuseIPDB API provider
+│   │       ├── virustotal.ts      # VirusTotal API provider
+│   │       ├── otx.ts             # AlienVault OTX API provider
+│   │       └── abusech.ts         # ThreatFox, MalwareBazaar, URLhaus provider
 │   ├── analyze-email.ts           # Groq AI Phishing Email Audit API
 │   ├── analyze-news.ts            # Groq AI News Analyzer & Chat Assistant API
 │   ├── analyze-phishing.ts        # Phishing heuristic evaluation API
 │   ├── email.ts                   # Email Lookup & MX validation API
 │   ├── file.ts                    # File SHA256 & magic-byte scanner API
-│   ├── ip.ts                      # IP Intelligence & Geolocation API
+│   ├── ip.ts                      # IP Intelligence, Geolocation & Threat Scoring API
 │   ├── phishing-intel.ts          # PhishGuard URL correlation API
 │   ├── phone.ts                   # Phone Intelligence API
 │   └── url.ts                     # URL threat provider API
@@ -158,16 +170,21 @@ npm install
 ```
 
 ### 2. Environment Configuration (Optional)
-Create a `.env` file in the project root if you wish to provide third-party API keys:
+Create a `.env` file in the project root to enable live third-party threat intelligence APIs:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
-WHOISXML_API_KEY=your_whoisxml_key
+CENSYS_API_KEY=your_censys_pat_or_api_key
+MAXMIND_ACCOUNT_ID=your_maxmind_account_id
+MAXMIND_LICENSE_KEY=your_maxmind_license_key
 VIRUSTOTAL_API_KEY=your_virustotal_key
 ABUSEIPDB_API_KEY=your_abuseipdb_key
+ALIENVAULT_OTX_API_KEY=your_otx_key
+GOOGLE_SAFE_BROWSING_API_KEY=your_safe_browsing_key
+WHOISFREAKS_API_KEY=your_whoisfreaks_key
 IPINFO_TOKEN=your_ipinfo_token
 ```
-*(Note: If no API keys are provided, DefenSight automatically uses its built-in local fallback engines.)*
+*(Note: If any API keys are omitted, DefenSight automatically uses its built-in local fallback engines with zero server crashes.)*
 
 ### 3. Start Development Server
 ```bash
@@ -186,3 +203,4 @@ The optimized production bundle will be generated in the `dist/` directory.
 ## 📝 License
 
 MIT License
+

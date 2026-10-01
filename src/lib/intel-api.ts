@@ -16,6 +16,8 @@ export type IpIntelResult = {
   threat: ThreatScore;
   summary: Record<string, unknown>;
   intel?: Record<string, unknown>;
+  censys?: Record<string, unknown> | null;
+  maxmind?: Record<string, unknown> | null;
   sources: Record<string, unknown>;
 };
 
@@ -85,6 +87,8 @@ export type PhishIntelResult = {
   risk_breakdown: { factor: string; points: number }[];
   phishstats: Record<string, unknown>;
   urlscan: Record<string, unknown>;
+  censys?: Record<string, unknown> | null;
+  maxmind?: Record<string, unknown> | null;
   intel?: Record<string, unknown>;
   provider_errors?: Record<string, string | null>;
 };
