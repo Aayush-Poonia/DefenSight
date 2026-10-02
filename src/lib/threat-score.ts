@@ -232,6 +232,9 @@ export function scorePhish(input: {
   censysHasRiskyPorts?: boolean;
   censysRiskyPorts?: number[];
   censysServicesCount?: number;
+  dnsNoSpf?: boolean;
+  dnsNoDmarc?: boolean;
+  dnsSuspiciousNs?: boolean;
 }): ThreatScore {
   const breakdown: ScoreBreakdownItem[] = [];
   if (input.inPhishDb) {
@@ -288,6 +291,15 @@ export function scorePhish(input: {
   }
   if (input.manyRedirects) {
     breakdown.push({ factor: "Long redirect chain", points: 12 });
+  }
+  if (input.dnsNoSpf) {
+    breakdown.push({ factor: "DNS: No SPF record (phishing-facilitating config)", points: 10 });
+  }
+  if (input.dnsNoDmarc) {
+    breakdown.push({ factor: "DNS: No DMARC record (domain spoofing possible)", points: 12 });
+  }
+  if (input.dnsSuspiciousNs) {
+    breakdown.push({ factor: "DNS: Suspicious / free-tier nameserver provider", points: 15 });
   }
   return buildThreat(breakdown, 10);
 }

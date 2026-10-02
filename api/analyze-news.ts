@@ -1,5 +1,7 @@
-﻿import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { handleCors, setCors } from "./_lib/cors.js";
+import { settleProvider } from "./_lib/http.js";
+import { fetchNewsApi, buildNewsSearchQuery, type NewsApiData } from "./_lib/providers/newsapi.js";
 
 const NEWS_SYSTEM_PROMPT = `You are an expert fact-checking analyst trained in NLP-based misinformation detection.
 Analyze the given news article using these signals:
@@ -9,7 +11,7 @@ Analyze the given news article using these signals:
 - Verifiable claims vs unsupported assertions
 - Clickbait patterns, ALL CAPS, excessive punctuation
 - Bias indicators and loaded framing
-- Factual plausibility against general world knowledge
+- Real-time global news coverage verification (NewsAPI telemetry)
 
 Return a calibrated verdict via the report_verdict tool. ALWAYS pass key_claims as an ARRAY of objects (never a string). Every required field must be present.`;
 
@@ -56,16 +58,21 @@ const NEWS_TOOL_DEF = {
   },
 };
 
-const CHAT_SYSTEM_PROMPT = `You are DefenSight AI, a helpful, intelligent AI Assistant and Cyber Threat Investigator powered by Groq (Llama-3.3 70B).
+const CHAT_SYSTEM_PROMPT = `You are DefenSight AI, a helpful, intelligent AI Assistant, Cyber Threat Investigator, and Real-Time News Analyst powered by Groq (Llama-3.3 70B) & NewsAPI.
 
 Guidelines:
 1. **Conversational AI Mode (ChatGPT / Gemini style)**:
-   - Reply naturally, warmly, and intelligently to any general message, greeting, question, or code request.
-   - You can discuss any cybersecurity concept, general topic, programming language, software architecture, or general question.
+   - Reply naturally, warmly, and intelligently to any general message, greeting, question, or news request.
    - Format your responses with clean Markdown (headings, bullet points, code blocks).
 
-2. **Security Tool Scanning & Detail Investigations**:
-   - When provided with background threat scan telemetry (URL phishing data, VirusTotal malware scans, Scanii findings, email phishing audits, IP reputation, phone validation, news credibility reports), analyze all telemetry thoroughly.
+2. **Real-Time News Analysis (NewsAPI)**:
+   - When provided with background news telemetry or NewsAPI article matches for a topic:
+     - Present the latest breaking news stories from top global publishers (e.g., BBC, Reuters, The Verge, TechCrunch, Bloomberg, etc.).
+     - Analyze each news article individually in your own intelligent words: explain the core story, key takeaways, security/tech implications, and why it matters.
+     - Always provide structured markdown sections per article with publisher source attribution and clickable markdown links to the original articles (e.g. [Read Full Story on Reuters](url)).
+
+3. **Security Tool Scanning & Detail Investigations**:
+   - When provided with background threat scan telemetry (URL phishing data, VirusTotal malware scans, Scanii findings, email phishing audits, IP reputation, phone validation), analyze all telemetry thoroughly.
    - Deliver an executive verdict, threat score breakdown, key indicators of compromise (IOCs), and actionable defense recommendations.`;
 
 type ChatMsg = { role: string; content: string };
@@ -99,17 +106,32 @@ function sanitizeChatMessages(raw: unknown): ChatMsg[] {
     if ((role !== "user" && role !== "assistant") || typeof content !== "string") continue;
     const trimmed = content.trim();
     if (!trimmed) continue;
-    if (trimmed.length > 12000) out.push({ role, content: trimmed.slice(0, 12000) });
+    // Cap each message at 3000 chars to avoid 413 payload-too-large
+    if (trimmed.length > 3000) out.push({ role, content: trimmed.slice(0, 3000) });
     else out.push({ role, content: trimmed });
   }
-  return out.slice(-24);
+  // Keep only last 6 turns to keep payload within Groq limits
+  return out.slice(-6);
 }
 
-const GROQ_MODELS = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"];
+const GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"];
 
-async function callGroqNews(content: string, source: string) {
+async function callGroqNews(content: string, source: string, newsapiData?: NewsApiData | null) {
   const key = process.env.GROQ_API_KEY;
-  if (!key) return fallbackNewsAnalysis(content, source);
+
+  let newsContextStr = "";
+  if (newsapiData && newsapiData.articles.length > 0) {
+    const pubList = newsapiData.top_publishers.join(", ") || "various sources";
+    const topHeadlines = newsapiData.articles
+      .slice(0, 3)
+      .map((a) => `- "${a.title}" (${a.source.name})`)
+      .join("\n");
+    newsContextStr = `\n\nREAL-TIME NEWSAPI COVERAGE FOUND:\nTotal matching articles in global index: ${newsapiData.total_results}\nTop reporting publishers: ${pubList}\nMatching Headlines:\n${topHeadlines}`;
+  } else {
+    newsContextStr = `\n\nREAL-TIME NEWSAPI COVERAGE: No mainstream news outlets have reported on this exact topic/headline.`;
+  }
+
+  if (!key) return fallbackNewsAnalysis(content, source, newsapiData);
 
   for (const model of GROQ_MODELS) {
     try {
@@ -117,7 +139,10 @@ async function callGroqNews(content: string, source: string) {
         model,
         messages: [
           { role: "system", content: NEWS_SYSTEM_PROMPT },
-          { role: "user", content: `Source/URL (optional): ${source || "n/a"}\n\nArticle:\n${content}` },
+          {
+            role: "user",
+            content: `Source/URL (optional): ${source || "n/a"}${newsContextStr}\n\nArticle To Analyze:\n${content}`,
+          },
         ],
         tools: [NEWS_TOOL_DEF],
         tool_choice: { type: "function", function: { name: "report_verdict" } },
@@ -134,26 +159,37 @@ async function callGroqNews(content: string, source: string) {
       return normalize(JSON.parse(tc.function.arguments));
     } catch {}
   }
-  return fallbackNewsAnalysis(content, source);
+  return fallbackNewsAnalysis(content, source, newsapiData);
 }
 
-function fallbackNewsAnalysis(content: string, source: string) {
+function fallbackNewsAnalysis(content: string, source: string, newsapiData?: NewsApiData | null) {
   const upper = (content.match(/[A-Z]{3,}/g) || []).length;
   const exclamations = (content.match(/!/g) || []).length;
   const clickbaitWords = ["shocking", "secretly", "cures", "doctors hate", "mind control", "refuses to report", "wake up", "insider sources", "share before"];
   const lower = content.toLowerCase();
   const hitCount = clickbaitWords.filter(w => lower.includes(w)).length;
   
-  const isFake = hitCount >= 2 || (upper > 4 && exclamations > 3);
-  const isUncertain = !isFake && (hitCount === 1 || exclamations > 2);
+  const hasNewsApiCoverage = Boolean(newsapiData && newsapiData.total_results > 0);
+
+  const isFake = !hasNewsApiCoverage && (hitCount >= 2 || (upper > 4 && exclamations > 3));
+  const isUncertain = !isFake && !hasNewsApiCoverage && (hitCount === 1 || exclamations > 2);
 
   const verdict = isFake ? "likely_fake" : isUncertain ? "uncertain" : "likely_real";
-  const confidence = isFake ? 88 : isUncertain ? 62 : 91;
+  const confidence = hasNewsApiCoverage ? 94 : isFake ? 88 : isUncertain ? 62 : 85;
+
+  const credSignals = !isFake
+    ? ["Neutral tone and standard journalistic structure", "No sensationalized trigger phrases"]
+    : [];
+  if (hasNewsApiCoverage && newsapiData) {
+    credSignals.push(`Verified against NewsAPI global index (${newsapiData.total_results} article(s) found across ${newsapiData.top_publishers.slice(0, 3).join(", ")})`);
+  }
 
   return normalize({
     verdict,
     confidence,
-    summary: isFake
+    summary: hasNewsApiCoverage
+      ? `Cross-referenced with live global news coverage via NewsAPI. Found ${newsapiData?.total_results} matching article(s) from publishers including ${newsapiData?.top_publishers.slice(0, 3).join(", ")}.`
+      : isFake
       ? "Linguistic analysis detected clickbait phrasing, sensationalized tone, and unverified claims."
       : isUncertain
       ? "Article contains sensational elements or opinion framing that require cross-referencing."
@@ -163,13 +199,11 @@ function fallbackNewsAnalysis(content: string, source: string) {
       : isUncertain
       ? ["Opinion-heavy phrasing", "Unverified secondary claims"]
       : [],
-    credibility_signals: !isFake
-      ? ["Neutral tone and standard journalistic structure", "No sensationalized trigger phrases"]
-      : [],
+    credibility_signals: credSignals,
     sentiment: isFake ? "alarmist" : isUncertain ? "opinionated" : "neutral",
     bias: isFake ? "sensationalist" : isUncertain ? "subjective" : "unbiased",
     key_claims: [
-      { claim: content.slice(0, 100) + "...", verifiability: isFake ? "false" : isUncertain ? "unverifiable" : "verifiable" }
+      { claim: content.slice(0, 100) + "...", verifiability: hasNewsApiCoverage ? "verifiable" : isFake ? "false" : isUncertain ? "unverifiable" : "verifiable" }
     ],
     recommendation: isFake
       ? "Do not share this post without verifying against primary reputable news outlets."
@@ -181,19 +215,31 @@ function fallbackAssistantReply(userMsg: string): string {
   const q = userMsg.trim().toLowerCase();
 
   if (/^(hi|hello|hey|greetings|good morning|good afternoon|good evening|yo)\b/i.test(q)) {
-    return `Hello! ðŸ‘‹ I am **DefenSight AI**, your dedicated AI Security Assistant & Threat Investigator.\n\nI can help you with:\n- **Cybersecurity Q&A** â€” Ask me about SQL injection, XSS, password hygiene, BEC, 2FA/MFA, VPNs, or code auditing.\n- **Background Threat Scanning** â€” Ask me to scan a URL, check an email message, audit an attached file, or lookup IP threat scores.\n\nHow can I assist you today?`;
+    return `Hello! 👋 I am **DefenSight AI**, your dedicated AI Security Assistant & Threat Investigator.\n\nI can help you with:\n- **Cybersecurity Q&A** — Ask me about SQL injection, XSS, password hygiene, BEC, 2FA/MFA, VPNs, or code auditing.\n- **Background Threat Scanning** — Ask me to scan a URL, check an email message, audit an attached file, or lookup IP threat scores.\n- **Live News Analysis** — Ask me for the latest news on any topic and I'll fetch and analyze it for you.\n\nHow can I assist you today?`;
   }
 
-  if (/^(who are you|what are you|what is your name|identify yourself)\b/i.test(q)) {
-    return `I am **DefenSight AI**, an advanced AI Threat Intelligence & Forensics Assistant powered by Groq High-Limit AI.\n\nMy primary goal is to help you analyze security concepts, answer cybersecurity questions, and perform background investigations across URLs, files, emails, IP addresses, and phone numbers.`;
+  // Identity questions — broad match including casual phrasings
+  if (
+    /^(who are you|what are you|what is your name|identify yourself)\b/i.test(q) ||
+    /tell me (about|more about) (your)?s?e?l?f/i.test(q) ||
+    /about (your)?s?e?l?f/i.test(q) ||
+    /what('?s| is) defensight/i.test(q)
+  ) {
+    return `## About DefenSight AI 🤖🛡️\n\nI am **DefenSight AI** — an advanced Cyber Threat Intelligence Assistant & Real-Time News Analyst.\n\n**Powered by:**\n- 🔥 **Groq (Llama-3.3 70B)** — Ultra-fast LLM inference\n- 📰 **NewsAPI** — Real-time global news cross-referencing\n- 🔍 **VirusTotal, URLScan, PhishStats, OTX, ThreatFox, Censys, MaxMind** — Multi-source threat intelligence\n- 🌐 **DNSDumpster** — DNS reconnaissance & phishing detection\n\n**What I can do:**\n1. **Cybersecurity Q&A** — Answer any security question conversationally\n2. **URL & Domain Scans** — PhishGuard with 10+ threat intelligence feeds\n3. **File & Malware Analysis** — VirusTotal + Scanii scanning\n4. **Email Phishing Audits** — BEC & wire fraud detection\n5. **IP & Phone Intelligence** — Geo-location, ASN, reputation scoring\n6. **Live News Analysis** — Fetch and AI-analyze breaking news on any topic\n\nAsk me anything — I'm here to help! 🚀`;
   }
 
   if (/^(how are you|how's it going|what's up)\b/i.test(q)) {
-    return `I'm operating smoothly and ready to assist with your cybersecurity questions or background investigations! What would you like to explore today?`;
+    return `I'm operating at full capacity and ready to assist! 🟢\n\nYou can ask me about cybersecurity topics, request a threat scan, or ask for the latest news on any topic. What would you like to explore today?`;
   }
 
   if (/^(what can you do|help|features|capabilities|commands)\b/i.test(q)) {
-    return `## DefenSight AI Capabilities ðŸ›¡ï¸\n\n- **Conversational Security Q&A**: Ask about web security, vulnerability fixes, cryptography, or security architecture.\n- **URL Phishing Scans**: Ask to *"scan https://example.com"* to check domain reputation and phishing indicators.\n- **Email Phishing Audits**: Paste an email or email header to check for BEC and wire fraud.\n- **File Scanning**: Attach any file or paste code/logs to scan across VirusTotal, Scanii, and ThreatFox.\n- **IP & Phone Intelligence**: Lookup IP addresses or phone numbers for risk ratings.`;
+    return `## DefenSight AI Capabilities 🛡️\n\n- **Conversational Security Q&A**: Ask about web security, vulnerability fixes, cryptography, or security architecture.\n- **URL Phishing Scans**: Ask to *"scan https://example.com"* to check domain reputation and phishing indicators.\n- **Email Phishing Audits**: Paste an email or email header to check for BEC and wire fraud.\n- **File Scanning**: Attach any file or paste code/logs to scan across VirusTotal, Scanii, and ThreatFox.\n- **IP & Phone Intelligence**: Lookup IP addresses or phone numbers for risk ratings.\n- **Live News**: Ask *"tell me the latest blockchain news"* or *"give me AI news"* for real-time articles.`;
+  }
+
+  // News requests — provide guidance when Groq can't be reached
+  if (/\b(news|headline|headlines|latest|breaking)\b/i.test(q)) {
+    const topic = q.replace(/\b(tell me|give me|show me|what('?s| is)|the|latest|breaking|news|headline|headlines|about|on|for)\b/gi, "").trim() || "cybersecurity";
+    return `## 📰 Live News Request\n\nI'm currently experiencing high load and couldn't connect to the AI model, but your request for **"${topic}" news** has been noted.\n\n**To get the latest news**, try:\n- Rephrasing as: *"fetch blockchain news"* or *"latest AI cybersecurity news"*\n- Visiting our **News Analyzer** page for full article credibility analysis\n\nOr just retry your message — I'll pull real-time articles from global publishers (BBC, Reuters, TechCrunch, Bloomberg, etc.) and analyze them for you!`;
   }
 
   if (q.includes("sql injection") || q.includes("sqli")) {
@@ -212,12 +258,14 @@ function fallbackAssistantReply(userMsg: string): string {
     return `## Phishing & Social Engineering Awareness\n\nPhishing uses deceptive emails, websites, or messages to steal credentials or commit wire fraud.\n\n**Red Flags:**\n- Urgent pressure tactics\n- Mismatched sender domain\n- Suspicious links/attachments\n- Requests for gift cards or direct deposit changes\n\n*Tip: Paste any suspicious URL or email text here to run a background threat scan!*`;
   }
 
-  return `## DefenSight AI Security Response\n\nThank you for your message regarding **"${userMsg.slice(0, 80)}"**.\n\n### Key Security Recommendations:\n1. **Principle of Least Privilege**: Grant minimal necessary permissions.\n2. **Defense in Depth**: Implement multi-layered security controls (WAF, MFA, EDR).\n3. **Keep Software Updated**: Apply patches promptly for known CVE vulnerabilities.\n4. **Zero Trust Baseline**: Explicitly verify all network requests.\n\nFeel free to ask follow-up security questions or instruct me to scan a URL, file, email, or IP address!`;
+  return `## DefenSight AI\n\nI received your message but couldn't connect to the AI model right now.\n\n💡 **Try asking me:**\n- "Tell me about yourself"\n- "Scan https://example.com"\n- "Latest cybersecurity news"\n- "What is XSS?"\n- "How do I prevent phishing?"\n\nFeel free to retry — I'm usually back online within seconds!`;
 }
 
 async function callGroqAssistant(messages: ChatMsg[]): Promise<string> {
   const key = process.env.GROQ_API_KEY;
-  const lastUserMsg = messages.filter((m) => m.role === "user").pop()?.content || "";
+  const rawLastUserMsg = messages.filter((m) => m.role === "user").pop()?.content || "";
+  // Strip appended telemetry block so fallback patterns can match the original query
+  const lastUserMsg = rawLastUserMsg.split("\n\n[BACKGROUND THREAT TELEMETRY")[0].trim();
 
   if (!key) {
     return fallbackAssistantReply(lastUserMsg);
@@ -229,7 +277,7 @@ async function callGroqAssistant(messages: ChatMsg[]): Promise<string> {
         model,
         messages: [{ role: "system", content: CHAT_SYSTEM_PROMPT }, ...messages],
         temperature: 0.55,
-        max_tokens: 4096,
+        max_tokens: 1500,
       };
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -272,12 +320,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { content, source = "" } = body as { content?: unknown; source?: string };
     if (typeof content !== "string" || content.length < 20 || content.length > 20000) {
       setCors(res);
-      return res.status(400).json({ error: "Content must be 20â€“20000 chars." });
+      return res.status(400).json({ error: "Content must be 20–20000 chars." });
     }
 
-    const result = await callGroqNews(content, source);
+    const searchQuery = buildNewsSearchQuery(content, source);
+    const newsapiRes = await settleProvider("newsapi", () => fetchNewsApi(searchQuery, 5));
+    const newsapiData = newsapiRes.ok ? newsapiRes.data : null;
+
+    const result = await callGroqNews(content, source, newsapiData);
     setCors(res);
-    return res.status(200).json({ ...result, _provider: "Groq" });
+    return res.status(200).json({
+      ...result,
+      newsapi: newsapiData
+        ? {
+            total_results: newsapiData.total_results,
+            top_publishers: newsapiData.top_publishers,
+            articles: newsapiData.articles.map((a) => ({
+              title: a.title,
+              source: a.source.name,
+              author: a.author,
+              url: a.url,
+              urlToImage: a.urlToImage,
+              publishedAt: a.publishedAt,
+              description: a.description,
+            })),
+          }
+        : null,
+      _provider: "Groq + NewsAPI",
+    });
   } catch (e) {
     console.error("[analyze-news]", e);
     setCors(res);

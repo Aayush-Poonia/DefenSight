@@ -22,11 +22,27 @@ import {
 
 type Verdict = "likely_real" | "uncertain" | "likely_fake";
 type Claim = { claim: string; verifiability: "verifiable" | "unverifiable" | "false" | "misleading" };
+type NewsApiArticleMatch = {
+  title: string;
+  source: string;
+  author: string | null;
+  url: string;
+  urlToImage: string | null;
+  publishedAt: string;
+  description: string | null;
+};
 type Result = {
   verdict: Verdict; confidence: number; summary: string;
   red_flags: string[]; credibility_signals: string[];
   sentiment: string; bias: string; key_claims: Claim[]; recommendation: string;
+  newsapi?: {
+    total_results: number;
+    top_publishers: string[];
+    articles: NewsApiArticleMatch[];
+  } | null;
+  _provider?: string;
 };
+
 type HistoryItem = { id: string; ts: number; preview: string; source: string; content: string; result: Result };
 
 const SAMPLE_POOL: { label: string; tone: "fake" | "real" | "mixed"; text: string }[] = [
@@ -260,6 +276,59 @@ function ResultPanel({ result, content, source }: { result: Result; content: str
           {result.credibility_signals.length === 0 ? <p className="text-sm text-muted-foreground">None detected.</p> : <ul className="space-y-2">{result.credibility_signals.map((r, i) => <li key={i} className="text-sm flex gap-2"><span className="text-[oklch(0.55_0.15_150)] mt-1">▸</span><span>{r}</span></li>)}</ul>}
         </Card>
       </div>
+
+      {result.newsapi && (
+        <Card className="p-6 border-border/60">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-accent" />
+              <span className="text-sm font-semibold uppercase tracking-wide">NewsAPI Live Cross-Reference</span>
+            </div>
+            <Badge variant="outline" className="font-mono text-xs">
+              {result.newsapi.total_results} article(s) found
+            </Badge>
+          </div>
+
+          {result.newsapi.articles.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No matching articles found across mainstream news publishers for this headline/query.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground mb-2">
+                Top Reporting Outlets:{" "}
+                <span className="font-semibold text-foreground">
+                  {result.newsapi.top_publishers.join(", ") || "Global News Outlets"}
+                </span>
+              </div>
+              {result.newsapi.articles.slice(0, 4).map((art, idx) => (
+                <a
+                  key={idx}
+                  href={art.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block p-3 rounded-md bg-muted/40 border border-border/40 hover:border-accent/40 hover:bg-muted/70 transition-colors group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="font-medium text-sm text-foreground group-hover:text-accent transition-colors line-clamp-2">
+                      {art.title}
+                    </div>
+                    <Badge variant="secondary" className="shrink-0 text-[10px] font-mono">
+                      {art.source}
+                    </Badge>
+                  </div>
+                  {art.description && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{art.description}</p>
+                  )}
+                  <div className="mt-2 text-[10px] font-mono text-muted-foreground">
+                    Published: {art.publishedAt ? new Date(art.publishedAt).toLocaleDateString() : "Recent"}
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className="p-6 border-border/60">
         <div className="flex flex-wrap gap-3 mb-5">

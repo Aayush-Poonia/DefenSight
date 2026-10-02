@@ -96,7 +96,7 @@ function extractEntities(text: string, file?: File | null) {
       text
     );
 
-  const isNewsRequest = /analyze news|fake news|fact check|check article|verify news/i.test(lower);
+  const isNewsRequest = /news|headline|headlines|updates|latest news|news about|news on|fact check|verify news|analyze news|fake news|article/i.test(lower);
 
   return {
     urls,
@@ -509,12 +509,12 @@ export default function Chat() {
       );
     }
 
-    // 6. News Credibility
-    if (entities.isNewsRequest && text.length >= 20) {
+    // 6. News Credibility & Live NewsAPI Search
+    if (entities.isNewsRequest && text.length >= 3) {
       scanPromises.push(
         analyzeNewsArticle({ content: text })
           .then((r) => {
-            telemetryData["news_credibility"] = r;
+            telemetryData["news_telemetry"] = r;
           })
           .catch((e) => {
             telemetryData["news_error"] = e?.message || "News analysis failed";
@@ -532,11 +532,19 @@ export default function Chat() {
 
     updateStep("ai", "running");
 
-    const groqHistory = historyForGroq.map((m) => {
-      if (m.id === historyForGroq[historyForGroq.length - 1].id && Object.keys(telemetryData).length > 3) {
+    // Truncate telemetry to stay within Groq's input token limit
+    const telemetryStr = JSON.stringify(telemetryData, null, 2);
+    const truncatedTelemetry = telemetryStr.length > 2500
+      ? telemetryStr.slice(0, 2500) + "\n... [truncated for context limit]"
+      : telemetryStr;
+
+    // Only pass the last 4 messages (2 turns) + append telemetry to the last user message
+    const recentHistory = historyForGroq.slice(-4);
+    const groqHistory = recentHistory.map((m, idx) => {
+      if (idx === recentHistory.length - 1 && Object.keys(telemetryData).length >= 3) {
         return {
           role: m.role,
-          content: `${m.content}\n\n[BACKGROUND THREAT TELEMETRY & SCAN RESULTS]:\n${JSON.stringify(telemetryData, null, 2)}`,
+          content: `${m.content}\n\n[BACKGROUND THREAT TELEMETRY & SCAN RESULTS]:\n${truncatedTelemetry}`,
         };
       }
       return { role: m.role, content: m.content };

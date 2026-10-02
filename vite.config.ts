@@ -32,6 +32,8 @@ const SERVER_ENV_KEYS = [
   "CENSYS_API_SECRET",
   "MAXMIND_ACCOUNT_ID",
   "MAXMIND_LICENSE_KEY",
+  "DNSDUMPSTER_API_KEY",
+  "NEWSAPI_API_KEY",
 ] as const;
 
 export default defineConfig(({ mode }) => {

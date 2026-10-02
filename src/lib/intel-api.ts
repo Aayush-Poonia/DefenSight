@@ -89,6 +89,7 @@ export type PhishIntelResult = {
   urlscan: Record<string, unknown>;
   censys?: Record<string, unknown> | null;
   maxmind?: Record<string, unknown> | null;
+  dnsdumpster?: Record<string, unknown> | null;
   intel?: Record<string, unknown>;
   provider_errors?: Record<string, string | null>;
 };

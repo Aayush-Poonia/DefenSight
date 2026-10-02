@@ -25,11 +25,12 @@ A centralized threat intelligence repository featuring specialized OSINT tools:
 - **Email Lookup** (`/intel/email`): Email deliverability verification, MX record checks, and disposable email domain detection.
 
 ### 3. 🌐 PhishGuard URL Scanner (`/phishing`)
+- **DNS Infrastructure Mapping**: Leverages **DNSDumpster** to extract A, MX, NS, TXT, and CNAME records, detect SPF/DMARC/DKIM authentication health, map DNS hosting providers, and flag suspicious/bulletproof nameservers.
 - **Target Host Inspection**: Correlates domain host server infrastructure with **Censys** (open ports & management services) and **MaxMind GeoIP** (hosting location, ASN, and server anonymity traits).
 - **Visual Website Screenshot**: Displays visual website snapshots via Microlink with automated fallback rendering (`s-shot.ru`).
 - **Domain & WHOIS Intelligence**: Domain age calculation, registrar identification, registration/expiration dates, and nameserver lookup.
-- **Multi-Source Threat Correlation**: Correlates threat indicators across **VirusTotal**, **Google Safe Browsing**, **PhishStats**, **URLhaus**, **AlienVault OTX**, **ThreatFox**, and **urlscan.io**.
-- **Risk Factor Breakdown**: Transparent scoring model highlighting punycode URLs, IP hostnames, brand impersonation, risky management ports, and redirect chains.
+- **Multi-Source Threat Correlation**: Correlates threat indicators across **DNSDumpster**, **Censys**, **MaxMind**, **VirusTotal**, **Google Safe Browsing**, **PhishStats**, **URLhaus**, **AlienVault OTX**, **ThreatFox**, and **urlscan.io**.
+- **Risk Factor Breakdown**: Transparent scoring model highlighting SPF/DMARC misconfigurations, suspicious nameservers, punycode URLs, IP hostnames, brand impersonation, risky management ports, and redirect chains.
 
 ### 4. 📧 Email Analyzer (`/email`)
 - **AI Phishing Email Audit**: Powered by **Groq Llama-3.3-70B** to detect Business Email Compromise (BEC), gift card fraud, direct deposit scams, and credential harvesting emails.
@@ -40,9 +41,10 @@ A centralized threat intelligence repository featuring specialized OSINT tools:
   - `About`: Explanations of BEC detection, header profiling, and risk calibration.
 
 ### 5. 📰 News Analyzer (`/news`)
+- **Real-Time NewsAPI Verification**: Integrates **NewsAPI** (`https://newsapi.org`) to cross-reference articles and claims against global news indexes, pulling real-time articles from top global publishers (BBC, Reuters, Associated Press, etc.).
 - **Misinformation & Fake News Auditing**: Paste headlines, news articles, or social media posts to detect clickbait, sensationalism, and unverified claims.
-- **LLM Reasoning**: Evaluates sentiment (alarmist, opinionated, neutral), bias (sensationalist, subjective, unbiased), red flags, credibility signals, and atomic claim verifiability.
-- **Multi-Tabbed Layout**: `Analyze`, `History`, and `About` sections with sample news datasets.
+- **LLM Reasoning**: Evaluates sentiment (alarmist, opinionated, neutral), bias (sensationalist, subjective, unbiased), red flags, credibility signals, and atomic claim verifiability powered by **Groq Llama-3.3-70B** and **NewsAPI**.
+- **Multi-Tabbed Layout**: `Analyze`, `History`, and `About` sections with sample news datasets and live NewsAPI publisher cards.
 
 ### 6. 🤖 Groq AI Assistant (`/chat`)
 - **Cybersecurity Chat Interface**: Placed directly below News Analyzer in the navigation sidebar.
