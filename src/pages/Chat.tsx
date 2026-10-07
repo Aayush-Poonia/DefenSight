@@ -614,7 +614,7 @@ export default function Chat() {
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-card ring-1 ring-emerald-500/30" />
           </div>
-          <div>
+            <div>
             <div className="font-bold text-sm tracking-tight text-foreground">DefenSight AI</div>
             <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
@@ -807,7 +807,7 @@ export default function Chat() {
                     )}
 
                     {/* Message Content */}
-                    {msg.role === "assistant" ? (
+                  {msg.role === "assistant" ? (
                       <div className="w-full min-w-0">
                         {msg.content ? (
                           <ReactMarkdown
@@ -1050,13 +1050,13 @@ export default function Chat() {
             disabled={loading || (!input.trim() && !attachedFile)}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </form>
+            </Button>
+          </form>
 
         <p className="text-[10px] text-muted-foreground font-mono text-center">
           Powered by Groq AI • Threat scans auto-trigger when you mention a URL, IP, email, or file
         </p>
-      </div>
+        </div>
     </div>
   );
 }
