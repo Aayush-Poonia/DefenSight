@@ -133,25 +133,55 @@ export function scorePhone(input: {
   is_voip?: boolean | null;
   risk_score?: number | null;
   line_type?: string | null;
+  // Veriphone signals
+  veriphone_valid?: boolean | null;
+  is_non_geographical?: boolean | null;  // true = VoIP/virtual/non-geographic
+  veriphone_type?: string | null;        // "mobile"|"fixed_line"|"voip"|"unknown"
 }): ThreatScore {
   const breakdown: ScoreBreakdownItem[] = [];
-  if (input.valid === false) breakdown.push({ factor: "Number failed validation", points: 40 });
-  if (input.is_voip) breakdown.push({ factor: "VoIP / virtual line type", points: 20 });
+
+  // --- Validation signals (Numverify + Abstract + Veriphone cross-check) ---
+  const validSignals = [input.valid, input.veriphone_valid].filter((v) => v !== null && v !== undefined);
+  const anyInvalid = validSignals.some((v) => v === false);
+  const allValid = validSignals.length > 0 && validSignals.every((v) => v === true);
+
+  if (anyInvalid) breakdown.push({ factor: "Number failed validation (multi-source)", points: 40 });
+
+  // --- VoIP / virtual line detection (any source signals VoIP = flag it) ---
+  const vt = (input.veriphone_type || "").toLowerCase();
   const lt = (input.line_type || "").toLowerCase();
+  const isVoip =
+    input.is_voip ||
+    input.is_non_geographical === true ||
+    vt === "voip" ||
+    vt === "virtual" ||
+    lt.includes("voip");
+
+  if (isVoip) breakdown.push({ factor: "VoIP / virtual / non-geographic line", points: 20 });
+
+  // --- Premium / toll lines ---
   if (lt.includes("toll") || lt.includes("premium")) {
     breakdown.push({ factor: "Premium / toll line type", points: 25 });
   }
+
+  // --- Veriphone: unknown type on a non-mobile number raises suspicion ---
+  if (vt === "unknown" && input.is_non_geographical === true) {
+    breakdown.push({ factor: "Unknown non-geographic line type (Veriphone)", points: 10 });
+  }
+
+  // --- Provider risk score (Abstract) ---
   if (typeof input.risk_score === "number" && input.risk_score > 0) {
     breakdown.push({
       factor: `Provider risk signal (${input.risk_score})`,
       points: Math.min(35, Math.round(input.risk_score * 0.35)),
     });
   }
-  // Validation-friendly baseline — never claim "scammer"
-  if (input.valid === true && breakdown.length === 0) {
-    return buildThreat([{ factor: "Number structure validated", points: 0 }], 5);
+
+  // --- Validation-friendly baseline — never claim "scammer" ---
+  if (allValid && breakdown.length === 0) {
+    return buildThreat([{ factor: "Number structure validated (multi-source)" , points: 0 }], 5);
   }
-  return buildThreat(breakdown, input.valid === true ? 8 : 20);
+  return buildThreat(breakdown, allValid ? 8 : 20);
 }
 
 export function scoreEmail(input: {

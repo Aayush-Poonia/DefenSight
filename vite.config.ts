@@ -34,6 +34,7 @@ const SERVER_ENV_KEYS = [
   "MAXMIND_LICENSE_KEY",
   "DNSDUMPSTER_API_KEY",
   "NEWSAPI_API_KEY",
+  "VERIPHONE_API_KEY",
 ] as const;
 
 export default defineConfig(({ mode }) => {
