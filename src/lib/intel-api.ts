@@ -5,9 +5,15 @@ export type IpIntelResult = {
   ip: string;
   country: string | null;
   region: string | null;
+  city?: string | null;
+  timezone?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   asn: string | null;
   isp: string | null;
   organization: string | null;
+  reverse_dns?: string | null;
+  reverse_ip_domains?: string[];
   hosting_provider: string | null;
   ip_type: string;
   security: Record<string, boolean>;
@@ -18,7 +24,7 @@ export type IpIntelResult = {
   intel?: Record<string, unknown>;
   censys?: Record<string, unknown> | null;
   maxmind?: Record<string, unknown> | null;
-  sources: Record<string, unknown>;
+  sources: Record<string, { ok?: boolean; error?: string }>;
 };
 
 export type PhoneIntelResult = {
@@ -90,8 +96,16 @@ export type PhishIntelResult = {
   censys?: Record<string, unknown> | null;
   maxmind?: Record<string, unknown> | null;
   dnsdumpster?: Record<string, unknown> | null;
+  hackertarget?: Record<string, unknown> | null;
   intel?: Record<string, unknown>;
   provider_errors?: Record<string, string | null>;
+};
+
+export type HackerTargetResult = {
+  tool: string;
+  target: string;
+  parsed: unknown;
+  raw: string;
 };
 
 export const intelApi = {
@@ -101,4 +115,6 @@ export const intelApi = {
   file: (payload: { filename: string; contentBase64: string; contentType: string }) =>
     invokeFn<FileScanResult>("file", payload),
   phishingIntel: (url: string) => invokeFn<PhishIntelResult>("phishing-intel", { url }),
+  hackertarget: (tool: string, target: string) =>
+    invokeFn<HackerTargetResult>("hackertarget", { tool, target }),
 };

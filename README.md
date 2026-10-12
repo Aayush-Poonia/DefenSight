@@ -41,7 +41,7 @@ The landing page after login. It provides:
 
 ### 2. 📡 IP Intelligence (`/intel/ip`)
 
-Runs **4 parallel provider calls** and merges results into a single enriched response:
+Runs **12 parallel provider calls** and merges results into a single enriched response:
 
 #### How it works:
 1. User enters any IPv4 address.
@@ -363,7 +363,7 @@ When all Groq models fail, a deterministic fallback handles:
 │   │       ├── abusech.ts            # ThreatFox, MalwareBazaar, URLhaus (Abuse.ch)
 │   │       ├── abuseipdb.ts          # AbuseIPDB IP reputation
 │   │       ├── censys.ts             # Censys Platform API v3 host asset scanner
-│   │       ├── disify.ts             # Disify disposable email detection
+│       ├── disify.ts             # Disify disposable email detection
 │   │       ├── dnsdumpster.ts        # DNSDumpster DNS recon & SPF/DMARC/DKIM analysis
 │   │       ├── hybridanalysis.ts     # Hybrid Analysis sandbox scanning
 │   │       ├── ipinfo.ts             # IPinfo geolocation & ASN

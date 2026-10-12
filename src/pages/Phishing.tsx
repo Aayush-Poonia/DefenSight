@@ -84,7 +84,7 @@ export default function Phishing() {
           <Globe className="h-7 w-7" /> URL Investigation
         </h1>
         <p className="text-muted-foreground mt-1">
-          DNSDumpster, Censys Host Intel, URLScan, Safe Browsing, VirusTotal, PhishStats, WHOIS, URLhaus, OTX & ThreatFox
+          HackerTarget, DNSDumpster, Censys, URLScan, Safe Browsing, VirusTotal, PhishStats, WHOIS, URLhaus, OTX & ThreatFox
         </p>
       </div>
 
@@ -165,6 +165,33 @@ export default function Phishing() {
             <FieldRow
               label="Nameservers"
               value={result.nameservers?.length ? result.nameservers.join(", ") : "—"}
+            />
+            <FieldRow
+              label="HT hosts"
+              value={
+                (result.hackertarget as { hosts?: { count?: number } } | null)?.hosts?.count != null
+                  ? String((result.hackertarget as { hosts?: { count?: number } }).hosts?.count)
+                  : (result.intel?.hackertarget as { host_count?: number } | undefined)?.host_count
+              }
+            />
+            <FieldRow
+              label="AXFR"
+              value={
+                (result.hackertarget as { zonetransfer?: { summary?: string } } | null)?.zonetransfer?.summary
+              }
+            />
+            <FieldRow
+              label="Missing headers"
+              value={
+                Array.isArray(
+                  (result.intel?.hackertarget as { missing_security_headers?: string[] } | undefined)
+                    ?.missing_security_headers,
+                )
+                  ? (
+                      result.intel?.hackertarget as { missing_security_headers?: string[] }
+                    ).missing_security_headers?.join(", ")
+                  : null
+              }
             />
           </Card>
 

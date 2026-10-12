@@ -109,12 +109,70 @@ function extractEntities(text: string, file?: File | null) {
   };
 }
 
+function detectHackerTargetIntent(text: string): { tool: string; target: string } | null {
+  const patterns: Array<[RegExp, string]> = [
+    [/\b(dns lookup|lookup dns|mx records?|ns records?|aaaa|cname records?|txt records?)\b/i, "dnslookup"],
+    [/\b(host search|subdomains?)\b/i, "hostsearch"],
+    [/\bwhois\b/i, "whois"],
+    [/\breverse dns\b|\bptr\b/i, "reversedns"],
+    [/\breverse ip\b/i, "reverseiplookup"],
+    [/\bgeoip\b|\bgeolocation\b|ip location/i, "geoip"],
+    [/\basn lookup|\bas lookup\b/i, "aslookup"],
+    [/\bhttp headers?|security headers/i, "httpheaders"],
+    [/\bpage links?\b/i, "pagelinks"],
+    [/\bbanner lookup|banner grab/i, "bannerlookup"],
+    [/\b\bping\b/i, "ping"],
+    [/\bmtr\b|traceroute/i, "mtr"],
+    [/\bsubnet calc|cidr\b/i, "subnetcalc"],
+    [/\bzone transfer|axfr/i, "zonetransfer"],
+    [/\breverse analytics|analytics id|\bUA-\d+/i, "analyticslookup"],
+    [/\bshared dns\b/i, "findshareddns"],
+    [/\budp scan\b/i, "nmap_udp"],
+    [/\b(port scan|tcp scan|nmap)\b/i, "nmap"],
+  ];
+
+  let tool: string | null = null;
+  for (const [re, name] of patterns) {
+    if (re.test(text)) {
+      tool = name;
+      break;
+    }
+  }
+  if (!tool) return null;
+
+  const ip = text.match(/\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d?\d)\b/);
+  const url = text.match(/https?:\/\/[^\s<>"')]+/i);
+  const analytics = text.match(/\b(?:UA|YT)-\d{4,}-\d+\b/i) || text.match(/\bG-[A-Z0-9]{6,}\b/);
+  let domain: string | null = null;
+  if (url) {
+    try {
+      domain = new URL(url[0]).hostname;
+    } catch {
+      domain = null;
+    }
+  }
+  if (!domain) {
+    const dm = text.match(/\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}\b/i);
+    domain = dm ? dm[0] : null;
+  }
+
+  const ipTools = new Set(["reversedns", "reverseiplookup", "geoip", "aslookup", "nmap", "nmap_udp", "ping", "mtr", "subnetcalc", "bannerlookup"]);
+  const target = analytics
+    ? analytics[0]
+    : ipTools.has(tool)
+      ? ip?.[0] || domain
+      : domain || ip?.[0];
+  if (!target) return null;
+  return { tool, target };
+}
+
 function shouldPerformScan(text: string, file: File | null): boolean {
   if (file) return true;
 
   const lower = text.toLowerCase().trim();
-  const scanKeywords = /\b(scan|investigate|check|audit|analyze|inspect|verify|test|detail|details|is this safe|is it safe|phishguard|virustotal|scanii|threat level|phishing check|malware check|fake news|news check)\b/i;
+  const scanKeywords = /\b(scan|investigate|check|audit|analyze|inspect|verify|test|detail|details|is this safe|is it safe|phishguard|virustotal|scanii|threat level|phishing check|malware check|fake news|news check|dns lookup|whois|reverse dns|reverse ip|geoip|traceroute|port scan|host search|zone transfer|hackertarget)\b/i;
   if (scanKeywords.test(lower)) return true;
+  if (detectHackerTargetIntent(text)) return true;
 
   const isOnlyUrl = /^https?:\/\/[^\s]+$/i.test(lower);
   const isOnlyIp = /^\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b$/i.test(lower);
@@ -364,6 +422,8 @@ export default function Chat() {
     if (entities.ips.length > 0) scannedEntitiesList.push(`${entities.ips.length} IP Address(es)`);
     if (entities.phones.length > 0) scannedEntitiesList.push(`${entities.phones.length} Phone Number(s)`);
     if (entities.isNewsRequest) scannedEntitiesList.push("News Credibility Analysis");
+    const htIntent = detectHackerTargetIntent(text);
+    if (htIntent) scannedEntitiesList.push(`HackerTarget ${htIntent.tool}`);
 
     updateStep(
       "entities",
@@ -509,7 +569,21 @@ export default function Chat() {
       );
     }
 
-    // 6. News Credibility & Live NewsAPI Search
+    // 6. HackerTarget OSINT (DNS, WHOIS, geo, headers, etc.)
+    if (htIntent) {
+      scanPromises.push(
+        intelApi
+          .hackertarget(htIntent.tool, htIntent.target)
+          .then((r) => {
+            telemetryData[`hackertarget_${r.tool}`] = r;
+          })
+          .catch((e) => {
+            telemetryData["hackertarget_error"] = e?.message || "HackerTarget lookup failed";
+          })
+      );
+    }
+
+    // 7. News Credibility & Live NewsAPI Search
     if (entities.isNewsRequest && text.length >= 3) {
       scanPromises.push(
         analyzeNewsArticle({ content: text })
@@ -1054,7 +1128,7 @@ export default function Chat() {
           </form>
 
         <p className="text-[10px] text-muted-foreground font-mono text-center">
-          Powered by Groq AI • Threat scans auto-trigger when you mention a URL, IP, email, or file
+          Powered by Groq AI • Scans auto-trigger for URLs, IPs, files, or HackerTarget tools (DNS, WHOIS, geo, ping)
         </p>
         </div>
     </div>
@@ -1133,7 +1207,8 @@ function getCyberResponse(question: string): string {
   }
 
   if (/^(what can you do|help|features|capabilities|commands)\b/i.test(q)) {
-    return `## DefenSight AI Capabilities ðŸ›¡ï¸\n\n- **Conversational Security Q&A**: Ask about web security, vulnerability fixes, cryptography, or security architecture.\n- **URL Phishing Scans**: Ask to *"scan https://example.com"* to check domain reputation and phishing indicators.\n- **Email Phishing Audits**: Paste an email or email header to check for BEC and wire fraud.\n- **File Scanning**: Attach any file or paste code/logs to scan across VirusTotal, Scanii, and ThreatFox.\n- **IP & Phone Intelligence**: Lookup IP addresses or phone numbers for risk ratings.`;
+    return `## DefenSight AI Capabilities ðŸ›¡ï¸\n\n- **Conversational Security Q&A**: Ask about web security, vulnerability fixes, cryptography, or security architecture.\n- **URL Phishing Scans**: Ask to *"scan https://example.com"* to check domain reputation and phishing indicators.\n- **Email Phishing Audits**: Paste an email or email header to check for BEC and wire fraud.\n- **File Scanning**: Attach any file or paste code/logs to scan across VirusTotal, Scanii, and ThreatFox.\n- **IP & Phone Intelligence**: Lookup IP addresses or phone numbers for risk ratings.
+- **HackerTarget tools**: DNS lookup, host search, WHOIS, reverse DNS/IP, geoip, ASN, headers, ping, traceroute, subnet, AXFR, port scan.`;
   }
 
   if (q.includes("sql injection") || q.includes("sqli")) {

@@ -67,7 +67,7 @@ export default function IpIntelligence() {
               IP <span className="italic text-accent">Intelligence</span>.
             </h1>
             <p className="mt-4 text-base text-muted-foreground max-w-2xl leading-relaxed">
-              Query MaxMind GeoIP, Censys, IPinfo, Abstract, VirusTotal, AbuseIPDB, AlienVault OTX, and ThreatFox to construct a unified routing, reputation, and threat profile.
+              Query IP-API, HackerTarget, MaxMind, Censys, IPinfo, Abstract, VirusTotal, AbuseIPDB, OTX, and ThreatFox into one routing and reputation report.
             </p>
           </div>
         </div>
@@ -104,9 +104,20 @@ export default function IpIntelligence() {
               <FieldRow label="IP Address" value={result.ip} />
               <FieldRow label="Country" value={result.country} />
               <FieldRow label="Region" value={result.region} />
+              <FieldRow label="City" value={result.city} />
+              <FieldRow label="Timezone" value={result.timezone} />
+              <FieldRow
+                label="Coordinates"
+                value={
+                  result.latitude != null && result.longitude != null
+                    ? `${result.latitude}, ${result.longitude}`
+                    : null
+                }
+              />
               <FieldRow label="ASN" value={result.asn} />
               <FieldRow label="Organization" value={result.organization} />
               <FieldRow label="ISP" value={result.isp} />
+              <FieldRow label="Reverse DNS" value={result.reverse_dns} />
               <FieldRow label="Hosting" value={result.hosting_provider || "—"} />
               <FieldRow label="IP Type" value={result.ip_type} />
               <FieldRow
@@ -128,6 +139,89 @@ export default function IpIntelligence() {
             </Card>
             <ThreatScorePanel threat={result.threat} />
           </div>
+
+          <Card className="p-4 sm:p-5">
+            <h3 className="font-semibold mb-3">Source feeds</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(result.sources || {}).map(([name, st]) => (
+                <Badge
+                  key={name}
+                  variant="outline"
+                  className={`text-[10px] ${st?.ok ? "border-emerald-500/40 text-emerald-600" : "border-border text-muted-foreground"}`}
+                >
+                  {name === "ip_api" ? "IP-API" : name.replace(/_/g, " ")}: {st?.ok ? "ok" : "offline"}
+                </Badge>
+              ))}
+            </div>
+          </Card>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card className="p-4 sm:p-5 space-y-1">
+              <h3 className="font-semibold mb-2">IP-API</h3>
+              {result.intel?.ipapi ? (
+                <>
+                  <FieldRow label="Country" value={(result.intel.ipapi as { country?: string }).country} />
+                  <FieldRow label="Region" value={(result.intel.ipapi as { region?: string }).region} />
+                  <FieldRow label="City" value={(result.intel.ipapi as { city?: string }).city} />
+                  <FieldRow label="ISP" value={(result.intel.ipapi as { isp?: string }).isp} />
+                  <FieldRow label="Org" value={(result.intel.ipapi as { org?: string }).org} />
+                  <FieldRow label="ASN" value={(result.intel.ipapi as { asn?: string }).asn} />
+                  <FieldRow
+                    label="Proxy"
+                    value={(result.intel.ipapi as { is_proxy?: boolean }).is_proxy ? "Yes" : "No"}
+                  />
+                  <FieldRow
+                    label="Hosting"
+                    value={(result.intel.ipapi as { is_hosting?: boolean }).is_hosting ? "Yes" : "No"}
+                  />
+                  <FieldRow
+                    label="Mobile"
+                    value={(result.intel.ipapi as { is_mobile?: boolean }).is_mobile ? "Yes" : "No"}
+                  />
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {result.sources?.ip_api?.error || "IP-API did not return data for this lookup."}
+                </p>
+              )}
+            </Card>
+            <Card className="p-4 sm:p-5 space-y-1">
+              <h3 className="font-semibold mb-2">HackerTarget</h3>
+              {result.intel?.hackertarget ? (
+                <>
+                  <FieldRow label="Reverse DNS" value={result.reverse_dns} />
+                  <FieldRow
+                    label="Geo country"
+                    value={(result.intel.hackertarget as { geo?: { country?: string } }).geo?.country}
+                  />
+                  <FieldRow
+                    label="Geo city"
+                    value={(result.intel.hackertarget as { geo?: { city?: string } }).geo?.city}
+                  />
+                  <FieldRow
+                    label="ASN"
+                    value={(result.intel.hackertarget as { asn?: { asn?: string } }).asn?.asn}
+                  />
+                  <FieldRow
+                    label="Shared hosts"
+                    value={
+                      (result.intel.hackertarget as { reverse_ip?: { count?: number } }).reverse_ip?.count ??
+                      result.reverse_ip_domains?.length
+                    }
+                  />
+                  <FieldRow
+                    label="Domains on IP"
+                    value={result.reverse_ip_domains?.length ? result.reverse_ip_domains.join(", ") : null}
+                  />
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {result.sources?.hackertarget?.error || "HackerTarget did not return data for this lookup."}
+                </p>
+              )}
+            </Card>
+          </div>
+
           <AdvancedDetailsPanel data={result as unknown as Record<string, unknown>} />
         </div>
       )}

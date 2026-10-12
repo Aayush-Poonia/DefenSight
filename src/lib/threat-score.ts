@@ -80,6 +80,7 @@ export function scoreIp(input: {
   censysServicesCount?: number;
   censysHasRiskyPorts?: boolean;
   censysRiskyPorts?: number[];
+  reverseIpHostCount?: number;
 }): ThreatScore {
   const breakdown: ScoreBreakdownItem[] = [];
   if (input.is_tor) breakdown.push({ factor: "TOR exit node", points: 45 });
@@ -123,6 +124,12 @@ export function scoreIp(input: {
     breakdown.push({
       factor: `Censys high service exposure (${input.censysServicesCount} ports open)`,
       points: 12,
+    });
+  }
+  if (typeof input.reverseIpHostCount === "number" && input.reverseIpHostCount > 15) {
+    breakdown.push({
+      factor: `HackerTarget: ${input.reverseIpHostCount} domains share this IP`,
+      points: 8,
     });
   }
   return buildThreat(breakdown, 8);
@@ -265,6 +272,9 @@ export function scorePhish(input: {
   dnsNoSpf?: boolean;
   dnsNoDmarc?: boolean;
   dnsSuspiciousNs?: boolean;
+  axfrExposed?: boolean;
+  missingSecurityHeaders?: number;
+  manySubdomains?: boolean;
 }): ThreatScore {
   const breakdown: ScoreBreakdownItem[] = [];
   if (input.inPhishDb) {
@@ -330,6 +340,18 @@ export function scorePhish(input: {
   }
   if (input.dnsSuspiciousNs) {
     breakdown.push({ factor: "DNS: Suspicious / free-tier nameserver provider", points: 15 });
+  }
+  if (input.axfrExposed) {
+    breakdown.push({ factor: "HackerTarget: DNS zone transfer (AXFR) appears exposed", points: 22 });
+  }
+  if (typeof input.missingSecurityHeaders === "number" && input.missingSecurityHeaders >= 3) {
+    breakdown.push({
+      factor: `HackerTarget: ${input.missingSecurityHeaders} security headers missing`,
+      points: 10,
+    });
+  }
+  if (input.manySubdomains) {
+    breakdown.push({ factor: "HackerTarget: large subdomain/host footprint", points: 6 });
   }
   return buildThreat(breakdown, 10);
 }

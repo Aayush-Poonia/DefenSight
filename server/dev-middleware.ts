@@ -12,6 +12,7 @@ const routes: Record<string, () => Promise<(req: any, res: any) => any>> = {
   url: () => import("../api/url.ts").then((m) => m.default),
   file: () => import("../api/file.ts").then((m) => m.default),
   "phishing-intel": () => import("../api/phishing-intel.ts").then((m) => m.default),
+  hackertarget: () => import("../api/hackertarget.ts").then((m) => m.default),
 };
 
 function readBody(req: IncomingMessage): Promise<string> {

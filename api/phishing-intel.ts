@@ -4,6 +4,7 @@ import { handleCors, sendError, setCors } from "./_lib/cors.js";
 import { settleProvider } from "./_lib/http.js";
 import { lookupUrlhaus, searchThreatFox } from "./_lib/providers/abusech.js";
 import { fetchCensysHost } from "./_lib/providers/censys.js";
+import { fetchHackerTargetPhishBundle } from "./_lib/providers/hackertarget.js";
 import { fetchMaxMindGeoIp } from "./_lib/providers/maxmind.js";
 import { fetchDnsDumpster, nsLooksSuspicious } from "./_lib/providers/dnsdumpster.js";
 import { fetchOtxDomain, fetchOtxUrl } from "./_lib/providers/otx.js";
@@ -58,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = validateUrl(req.body?.url);
     const domain = extractDomain(url);
 
-    const [phish, whois, urlscan, safeBrowsing, vt, urlhaus, otxUrl, otxDomain, tfox, dnsdumpster, resolvedIpByDns] =
+    const [phish, whois, urlscan, safeBrowsing, vt, urlhaus, otxUrl, otxDomain, tfox, dnsdumpster, hackertarget, resolvedIpByDns] =
       await Promise.all([
         settleProvider("phishstats", () => fetchPhishStats(url)),
         settleProvider("whoisfreaks", () => fetchWhoisFreaks(domain)),
@@ -70,6 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         settleProvider("otx_domain", () => fetchOtxDomain(domain)),
         settleProvider("threatfox", () => searchThreatFox(url)),
         settleProvider("dnsdumpster", () => fetchDnsDumpster(domain)),
+        settleProvider("hackertarget", () => fetchHackerTargetPhishBundle(domain, url)),
         resolveDomainIp(domain),
       ]);
 
@@ -170,10 +172,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const maxmindRaw = maxmind.ok ? maxmind.data : null;
     const dnsRaw = dnsdumpster.ok ? dnsdumpster.data : null;
+    const htRaw = hackertarget.ok ? hackertarget.data : null;
+    const htDns = htRaw?.dns;
+    const htHosts = htRaw?.hosts;
+    const htHeaders = htRaw?.headers;
+    const htAxfr = htRaw?.zonetransfer;
 
-    const dnsNoSpf = dnsRaw ? !dnsRaw.has_spf : false;
-    const dnsNoDmarc = dnsRaw ? !dnsRaw.has_dmarc : false;
+    const dnsNoSpf = htDns ? !htDns.has_spf : dnsRaw ? !dnsRaw.has_spf : false;
+    const dnsNoDmarc = htDns ? !htDns.has_dmarc : dnsRaw ? !dnsRaw.has_dmarc : false;
     const dnsSuspiciousNs = dnsRaw ? nsLooksSuspicious(dnsRaw.ns_records) : false;
+    const axfrExposed = Boolean(htAxfr?.exposed);
+    const missingSecurityHeaders = htHeaders?.missing_security.length ?? 0;
+    const manySubdomains = (htHosts?.count ?? 0) > 20;
 
     const technologies: string[] = [];
     const labels = Array.isArray(lists.labels) ? lists.labels : [];
@@ -188,6 +198,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         technologies.push(`DNS Host: ${hp}`);
       }
     }
+    if (htHeaders?.server) technologies.push(`Server: ${htHeaders.server}`);
+    if (htHosts?.count) technologies.push(`HackerTarget hosts: ${htHosts.count}`);
 
     const redirect_chain: string[] = [];
     const requests = Array.isArray(usResult.requests) ? (usResult.requests as Record<string, unknown>[]) : [];
@@ -222,6 +234,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       dnsNoSpf,
       dnsNoDmarc,
       dnsSuspiciousNs,
+      axfrExposed,
+      missingSecurityHeaders,
+      manySubdomains,
     });
 
     let phishing_status: "clean" | "suspicious" | "phishing" = "clean";
@@ -264,7 +279,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       registrar,
       registration_date: createDate,
       expiration_date: expiryDate,
-      nameservers: nameservers.length > 0 ? nameservers : (dnsRaw?.ns_records.map((n) => n.host) ?? []),
+      nameservers:
+        nameservers.length > 0
+          ? nameservers
+          : htDns?.NS?.length
+            ? htDns.NS
+            : (dnsRaw?.ns_records.map((n) => n.host) ?? []),
       technologies: [...new Set(technologies)].slice(0, 20),
       redirect_chain: redirect_chain.slice(0, 10),
       recommendations,
@@ -318,6 +338,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             hosting_providers: dnsRaw.hosting_providers,
           }
         : null,
+      hackertarget: htRaw,
       intel: {
         safe_browsing: { hit: safeBrowsingHit },
         virustotal: { malicious: vtS.malicious, total: vtS.total },
@@ -350,6 +371,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               hosting_providers: dnsRaw.hosting_providers,
             }
           : null,
+        hackertarget: htRaw
+          ? {
+              a_count: htDns?.A.length ?? 0,
+              mx_count: htDns?.MX.length ?? 0,
+              ns_count: htDns?.NS.length ?? 0,
+              host_count: htHosts?.count ?? 0,
+              axfr_exposed: axfrExposed,
+              missing_security_headers: htHeaders?.missing_security ?? [],
+            }
+          : null,
       },
       provider_errors: {
         phishstats: phish.ok ? null : phish.error,
@@ -363,6 +394,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         censys: censys.ok ? null : censys.error,
         maxmind: maxmind.ok ? null : maxmind.error,
         dnsdumpster: dnsdumpster.ok ? null : dnsdumpster.error,
+        hackertarget: hackertarget.ok ? null : hackertarget.error,
       },
     };
 

@@ -88,7 +88,20 @@ function buildProviderSections(data: Record<string, unknown>): DetailSection[] {
 }
 
 function buildAutoSections(data: Record<string, unknown>): DetailSection[] {
-  const keys = ["intel", "summary", "extras", "number_info", "phishstats", "urlscan", "file_information", "mx_records"];
+  const keys = [
+    "intel",
+    "summary",
+    "extras",
+    "number_info",
+    "phishstats",
+    "urlscan",
+    "file_information",
+    "mx_records",
+    "hackertarget",
+    "dnsdumpster",
+    "censys",
+    "maxmind",
+  ];
   const sections: DetailSection[] = [];
 
   for (const key of keys) {
