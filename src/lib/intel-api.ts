@@ -108,6 +108,94 @@ export type HackerTargetResult = {
   raw: string;
 };
 
+/* ------------------------------------------------------------------ */
+/*  Vulnerability Intelligence                                         */
+/* ------------------------------------------------------------------ */
+
+export type VulnAffectedRange = {
+  cpe: string;
+  versionStartIncluding?: string;
+  versionStartExcluding?: string;
+  versionEndIncluding?: string;
+  versionEndExcluding?: string;
+  vulnerable: boolean;
+};
+
+export type VulnReference = { url: string; tags?: string[]; source?: string };
+
+export type VulnerabilityRecord = {
+  cve_id: string;
+  description: string | null;
+  cvss_score: number | null;
+  severity: string | null;
+  cvss_version: string | null;
+  cvss_vector: string | null;
+  published: string | null;
+  last_modified: string | null;
+  status: string | null;
+  cwes: string[];
+  references: VulnReference[];
+  affected_ranges: VulnAffectedRange[];
+  in_cisa_kev: boolean;
+  cisa_kev: unknown;
+  epss: { cve: string; epss: string; percentile: string; date: string } | null;
+  epss_score: number | null;
+  epss_percentile: number | null;
+  osv_aliases: string[];
+  osv_id: string | null;
+  risk_score: number;
+  risk_level: string;
+};
+
+export type VulnSearchResult = {
+  query: string;
+  is_cve: boolean;
+  total_results: number;
+  results: VulnerabilityRecord[];
+  sources: Record<string, { ok?: boolean; error?: string }>;
+};
+
+export type VulnDetailsResult = {
+  result: VulnerabilityRecord;
+  osv: unknown;
+  sources: Record<string, { ok?: boolean; error?: string }>;
+};
+
+export type VulnPackageResult = {
+  package: { name: string; ecosystem: string; version?: string };
+  vulns: Array<{
+    id: string;
+    summary: string | null;
+    details: string | null;
+    aliases: string[];
+    severity: Array<{ type: string; score: string }>;
+    cvss_score: number | null;
+    cvss_severity: string | null;
+    published: string | null;
+    modified: string | null;
+    references: Array<{ type: string; url: string }>;
+    affected: unknown[];
+    in_cisa_kev: boolean;
+    cisa_kev: unknown;
+    epss_score: number | null;
+    risk_score: number;
+    risk_level: string;
+  }>;
+  source: { ok?: boolean; error?: string };
+};
+
+export type VulnPackageScanResult = {
+  results: VulnPackageResult[];
+  sources: Record<string, { ok?: boolean; error?: string }>;
+};
+
+export type VulnRecentResult = {
+  days: number;
+  total_results: number;
+  results: VulnerabilityRecord[];
+  sources: Record<string, { ok?: boolean; error?: string }>;
+};
+
 export const intelApi = {
   ip: (ip: string) => invokeFn<IpIntelResult>("ip", { ip }),
   phone: (phone: string, country?: string) => invokeFn<PhoneIntelResult>("phone", { phone, country }),
@@ -117,4 +205,14 @@ export const intelApi = {
   phishingIntel: (url: string) => invokeFn<PhishIntelResult>("phishing-intel", { url }),
   hackertarget: (tool: string, target: string) =>
     invokeFn<HackerTargetResult>("hackertarget", { tool, target }),
+  vuln: {
+    search: (query: string, limit = 20) =>
+      invokeFn<VulnSearchResult>("vulnerability", { action: "search", query, limit }),
+    details: (cveId: string) =>
+      invokeFn<VulnDetailsResult>("vulnerability", { action: "details", cve_id: cveId }),
+    packageScan: (packages: Array<{ name: string; ecosystem: string; version?: string }>) =>
+      invokeFn<VulnPackageScanResult>("vulnerability", { action: "package-scan", packages }),
+    recent: (limit = 20, days = 7) =>
+      invokeFn<VulnRecentResult>("vulnerability", { action: "recent", limit, days }),
+  },
 };

@@ -15,6 +15,7 @@ import FileScanner from "./pages/FileScanner";
 import Chat from "./pages/Chat";
 import Account from "./pages/Account";
 import ResetPassword from "./pages/ResetPassword";
+import VulnerabilityIntelligence from "./pages/VulnerabilityIntelligence";
 import AppShell from "./components/AppShell";
 import { Loader2 } from "lucide-react";
 
@@ -55,6 +56,7 @@ export default function App() {
       <Route path="/email" element={<ProtectedRoute><EmailAnalyzer /></ProtectedRoute>} />
       <Route path="/password" element={<ProtectedRoute><Password /></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+      <Route path="/vulnerability" element={<ProtectedRoute><VulnerabilityIntelligence /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Account /></ProtectedRoute>} />

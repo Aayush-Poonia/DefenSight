@@ -20,6 +20,7 @@ import {
   Radar,
   ScanSearch,
   Settings,
+  ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
 
@@ -52,6 +53,7 @@ const NAV: NavItem[] = [
   { to: "/password", label: "Password Lab", icon: KeyRound },
   { to: "/news", label: "News Analyzer", icon: ScanSearch },
   { to: "/chat", label: "AI Assistant", icon: MessageSquare },
+  { to: "/vulnerability", label: "Vulnerability Intel", icon: ShieldAlert },
   { to: "/reports", label: "Reports", icon: FileText },
   { to: "/history", label: "History", icon: History },
   { to: "/settings", label: "Settings", icon: Settings },

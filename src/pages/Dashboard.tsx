@@ -23,6 +23,7 @@ import {
   Radar,
   ScanSearch,
   Search,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -40,6 +41,7 @@ const QUICK = [
   { to: "/phishing", label: "PhishGuard", icon: Globe },
   { to: "/email", label: "Email", icon: Mail },
   { to: "/news", label: "News", icon: ScanSearch },
+  { to: "/vulnerability", label: "Vuln Intel", icon: ShieldAlert },
 ];
 
 export default function Dashboard() {

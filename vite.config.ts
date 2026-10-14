@@ -37,6 +37,7 @@ const SERVER_ENV_KEYS = [
   "DNSDUMPSTER_API_KEY",
   "NEWSAPI_API_KEY",
   "VERIPHONE_API_KEY",
+  "NVD_API_KEY",
 ] as const;
 
 export default defineConfig(({ mode }) => {
