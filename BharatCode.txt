@@ -1,1 +1,9 @@
-
+Project Name: Defensight
+Tagline: One and only for investigation and threat detection
+Built for: BharatCode Hackathon
+Official Platform: https://bharatcode.ai
+Live Models Integrated:
+- groq
+GitHub Repository: https://github.com/Aayush-Poonia/DefenSight
+Developer: Aayush Poonia
+Status: Production Ready
