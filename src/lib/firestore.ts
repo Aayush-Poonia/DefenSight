@@ -11,7 +11,7 @@ import {
   serverTimestamp,
   type DocumentData,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 
 /** Sort key for Firestore Timestamp | serialized | missing (avoids composite index on userId + createdAt). */
 function createdAtMs(data: DocumentData): number {
@@ -103,4 +103,20 @@ export async function upsertUserProfile(userId: string, data: UserProfile) {
   };
   if (!existing.exists()) payload.createdAt = serverTimestamp();
   await setDoc(ref, payload, { merge: true });
+}
+
+// ---------- Mobile Waitlist ----------
+export async function saveWaitlistEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  const payload: any = {
+    email: normalized,
+    createdAt: serverTimestamp(),
+    source: "landing_mobile_notify",
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+  };
+  if (auth.currentUser) {
+    payload.userId = auth.currentUser.uid;
+  }
+  const docRef = await addDoc(collection(db, "waitlist"), payload);
+  return { ok: true, id: docRef.id };
 }

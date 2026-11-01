@@ -1,6 +1,6 @@
 # 🛡️ DefenSight — AI-Powered Cybersecurity Suite
 
-**DefenSight** is an enterprise-grade, AI-powered cybersecurity SaaS platform built with **React 19**, **Vite 7**, **Tailwind CSS v4**, **Groq AI**, and **Firebase**. It combines real-time multi-source threat intelligence, AI-powered phishing & fake-news detection, DNS reconnaissance, phone validation, file malware scanning, and a conversational AI security assistant — all in one unified platform.
+**DefenSight** is an enterprise-grade, AI-powered cybersecurity SaaS platform built with **React 19**, **Vite 7**, **Tailwind CSS v4**, **Groq AI**, and **Firebase**. It combines real-time multi-source threat intelligence, AI-powered phishing & fake-news detection, DNS reconnaissance, phone validation, file malware scanning, CVE/vulnerability intelligence, and a conversational AI security assistant — all in one unified platform.
 
 > 🔒 **Zero-crash design**: If any API key is missing or rate-limited, DefenSight silently falls back to built-in local heuristics. No 500 errors, no broken pages.
 
@@ -10,6 +10,7 @@
 
 | # | Tool | Route | Description |
 |---|------|-------|-------------|
+| 0 | Main Landing Page | `/` | 3D interactive showcase, live provider marquee, Groq AI stack, mobile waitlist |
 | 1 | Threat Dashboard | `/dashboard` | Global search router, KPI metrics, visual analytics |
 | 2 | IP Intelligence | `/intel/ip` | Multi-feed IP geolocation, ASN, threat scoring |
 | 3 | Phone Intelligence | `/intel/phone` | 3-source phone validation & carrier enrichment |
@@ -19,14 +20,31 @@
 | 7 | Email Analyzer | `/email` | Groq AI phishing email & BEC audit |
 | 8 | News Analyzer | `/news` | AI fake-news detection + NewsAPI cross-reference |
 | 9 | AI Assistant | `/chat` | Groq-powered security chatbot + live news queries |
-| 10 | Password Lab | `/password` | Client-side entropy scoring & password generator |
-| 11 | Reports | `/reports` | PDF & JSON export of all scan results |
-| 12 | Scan History | `/history` | Centralized audit log with filtering |
-| 13 | Account | `/settings` | Profile, avatar, and password management |
+| 10 | Vulnerability Intelligence | `/vulnerability` | CVE search, KEV, EPSS risk ranking, package scanner |
+| 11 | Password Lab | `/password` | Client-side entropy scoring & password generator |
+| 12 | Reports | `/reports` | PDF & JSON export of all scan results |
+| 13 | Scan History | `/history` | Centralized audit log with filtering |
+| 14 | Account | `/settings` | Profile, avatar, and password management |
 
 ---
 
 ## 🔬 How Each Feature Works
+
+### 0. 🛡️ Main Landing Page (`/`)
+
+The public-facing showcase and gateway to the DefenSight platform:
+
+- **3D Interactive Hero**: Mouse-parallax ambient lighting orbs, dynamic scan-line effect, and 3D card tilt transformations driven by CSS perspective transforms.
+- **Live Provider Marquee**: Infinite ticker showcasing 23+ active threat intelligence and OSINT providers integrated across the suite.
+- **Terminal Simulator**: Realistic CLI simulation demonstrating how multi-source correlation (AbuseIPDB, VirusTotal, Censys, AlienVault OTX) and Groq AI synthesis analyze high-risk indicators in real-time.
+- **Groq AI Layer**: Visual architecture card detailing the 3-model cascade (`openai/gpt-oss-120b` → `openai/gpt-oss-20b` → `qwen/qwen3.8-27b`).
+- **Interactive Mobile App Showcase & Firestore Waitlist**: iPhone mockup showcasing live telemetry, accompanied by an early-access waitlist form synced directly with Cloud Firestore (`/waitlist` collection).
+- **Smart Auth-Aware Routing**: Seamlessly adapts its interface based on authentication status:
+  - *Signed-in users*: Quick one-click access directly into modules and dashboard.
+  - *Guests*: Intuitive split between sign-in, account creation, and password reset.
+- **Zero-Crash Architecture Breakdown**: Transparent summary of `settleProvider()`, fallback engines, and fail-safe local heuristics.
+
+---
 
 ### 1. 📊 Threat Dashboard (`/dashboard`)
 
@@ -41,7 +59,7 @@ The landing page after login. It provides:
 
 ### 2. 📡 IP Intelligence (`/intel/ip`)
 
-Runs **12 parallel provider calls** and merges results into a single enriched response:
+Runs **10 parallel provider calls** and merges results into a single enriched response:
 
 #### How it works:
 1. User enters any IPv4 address.
@@ -60,6 +78,8 @@ Runs **12 parallel provider calls** and merges results into a single enriched re
 | **VirusTotal** | Malicious/total detection ratio across 90+ AV engines |
 | **AlienVault OTX** | Pulse count (threat intelligence matches in OTX community feeds) |
 | **ThreatFox (Abuse.ch)** | IOC matches for known malware C2 infrastructure |
+| **IP-API.com** | Country, region, city, timezone, coordinates, ISP/org, ASN, proxy/hosting/mobile flags |
+| **HackerTarget** | Reverse DNS, reverse-IP domains (shared hosts), geo/ASN enrichment |
 | **AbstractAPI** | IP type, connection type, VPN/proxy/Tor detection |
 
 #### Threat Scoring (`scoreIp`):
@@ -286,7 +306,46 @@ When all Groq models fail, a deterministic fallback handles:
 
 ---
 
-### 10. 🔑 Password Lab (`/password`)
+### 10. 🐛 Vulnerability Intelligence (`/vulnerability`)
+
+Aggregates CVE data from **NVD NIST**, **OSV.dev**, the **CISA KEV** catalog, and **FIRST EPSS** into a single risk-prioritized view. All four providers are free-tier friendly; only NVD benefits from an optional key (higher rate limit).
+
+#### How it works:
+1. The page is organized into three tabs — **CVE Search**, **Package Scanner**, and **Recent CVEs**.
+2. A single endpoint (`api/vulnerability.ts`) branches on an `action` field (`search` / `details` / `package-scan` / `recent`).
+3. NVD supplies the authoritative CVE record (description, CVSS, CWE, references, affected CPE ranges); CISA KEV and FIRST EPSS enrich every CVE in parallel.
+4. Results are scored with `computeRiskScore()` and sorted highest-risk-first.
+
+#### Providers:
+
+| Provider | Auth | What it contributes |
+|----------|------|-------------------|
+| **NVD NIST 2.0** | Optional `NVD_API_KEY` (raises rate limit) | CVE ID, English description, CVSS v3.1/v3.0/v2 base score & severity & vector, CWE weaknesses, published/modified dates, references, affected version (CPE) ranges |
+| **OSV.dev** | Free, no key | Package vulnerability lookups across npm, PyPI, Maven, Go, RubyGems, crates.io, Packagist, NuGet, Pub, Hex, Android, Linux; per-package affected/fixed ranges |
+| **CISA KEV Catalog** | Free, no key | Known-Exploited-Vulnerability flag plus required action, due date, ransomware-campaign use (catalog cached 6h) |
+| **FIRST EPSS** | Free, no key | Exploit Prediction Scoring System probability & percentile (0–1) |
+
+#### Risk Prioritization (`computeRiskScore`, 0–100):
+- **CVSS base score** → **up to 60 pts** (60 if unknown)
+- **Listed in CISA KEV** → **+25 pts**
+- **EPSS probability** → **up to 15 pts** (baseline 5 when unavailable)
+
+Risk labels: `Critical` ≥ 80 · `High` ≥ 60 · `Medium` ≥ 40 · `Low` ≥ 20 · otherwise `Info`.
+
+#### Features:
+- **CVE Search** — by CVE ID (`CVE-YYYY-NNNNN`) or keyword (software name / generic term)
+- **Vulnerability Details** — slide-out drawer with description, CVSS score/vector, severity, CWEs, metadata, affected & patched versions, and references
+- **Known Exploited Vulnerabilities** — KEV badge with the full CISA entry (required action, due date, ransomware use)
+- **Package Vulnerability Scanner** — OSV-powered batch scan of dependencies (Maven requires `groupId:artifactId`)
+- **Severity Filters** — toggleable Critical / High / Medium / Low filters with live counts
+- **Affected Version Checker** — shows CPE ranges with `versionStart` / `versionEnd` and `fixed in` patch versions
+- **Risk Prioritization** — CVSS + KEV + EPSS combined score, sorted descending
+- **Export Reports** — downloadable **PDF** (jsPDF + autotable) and **CSV** for search & recent views
+- **Recent Vulnerabilities** — newly published CVEs over a selectable window (1 / 3 / 7 / 14 / 30 days)
+
+---
+
+### 11. 🔑 Password Lab (`/password`)
 
 100% client-side — no data ever leaves the browser.
 
@@ -300,14 +359,14 @@ When all Groq models fail, a deterministic fallback handles:
 
 ---
 
-### 11. 📄 Reports (`/reports`)
+### 12. 📄 Reports (`/reports`)
 
 - **PDF Export**: Professional PDF security investigation report using `jsPDF` + `jspdf-autotable`. Includes scan metadata, threat scores, provider verdicts, and recommendations.
 - **JSON Export**: Full structured JSON dump of all scan telemetry for integration with SIEMs or custom tooling.
 
 ---
 
-### 12. 📜 Scan History (`/history`)
+### 13. 📜 Scan History (`/history`)
 
 - **Centralized Audit Log**: All scans from all tools are automatically saved (cloud-synced via Firestore when logged in, local otherwise).
 - **Filtering**: Filter by tool type (IP, URL, Phone, Email, File, News, Email AI).
@@ -316,7 +375,7 @@ When all Groq models fail, a deterministic fallback handles:
 
 ---
 
-### 13. 👤 Account & Settings (`/settings`)
+### 14. 👤 Account & Settings (`/settings`)
 
 - **Profile Photo**: Upload, preview, crop, and remove a custom profile avatar. Stored in Firebase Storage and synced across the sidebar, Firestore, and Firebase Auth.
 - **Password Change**: Update account password directly in-app with real-time character count and match validation.
@@ -338,10 +397,11 @@ When all Groq models fail, a deterministic fallback handles:
 | **AI LLM** | Groq API (`openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b`) |
 | **Real-Time News** | NewsAPI (`newsapi.org`) |
 | **Phone Validation** | Veriphone v2 + Numverify + AbstractAPI |
-| **IP Geolocation** | MaxMind GeoIP2 / GeoLite2 |
-| **DNS Recon** | DNSDumpster |
+| **IP Geolocation** | MaxMind GeoIP2 / GeoLite2 + IP-API.com |
+| **DNS Recon** | DNSDumpster + HackerTarget |
 | **Host Scanning** | Censys Platform API v3 |
 | **Threat Feeds** | VirusTotal · AbuseIPDB · AlienVault OTX · ThreatFox · URLhaus · MalwareBazaar · PhishStats · Google Safe Browsing · urlscan.io |
+| **Vulnerability Intel** | NVD NIST 2.0 · OSV.dev · CISA KEV Catalog · FIRST EPSS |
 | **Screenshot** | Microlink API + s-shot.ru fallback |
 | **File AV** | Scanii + Hybrid Analysis |
 | **WHOIS** | WhoisFreaks + WhoisXML |
@@ -363,13 +423,19 @@ When all Groq models fail, a deterministic fallback handles:
 │   │       ├── abusech.ts            # ThreatFox, MalwareBazaar, URLhaus (Abuse.ch)
 │   │       ├── abuseipdb.ts          # AbuseIPDB IP reputation
 │   │       ├── censys.ts             # Censys Platform API v3 host asset scanner
-│       ├── disify.ts             # Disify disposable email detection
+│   │       ├── cisa-kev.ts           # CISA Known Exploited Vulnerabilities catalog
+│   │       ├── disify.ts             # Disify disposable email detection
 │   │       ├── dnsdumpster.ts        # DNSDumpster DNS recon & SPF/DMARC/DKIM analysis
+│   │       ├── epss.ts               # FIRST EPSS exploit-probability scores
+│   │       ├── hackertarget.ts       # HackerTarget DNS/host/ASN/port recon toolkit
 │   │       ├── hybridanalysis.ts     # Hybrid Analysis sandbox scanning
+│   │       ├── ipapi.ts              # IP-API.com geolocation & proxy/hosting flags
 │   │       ├── ipinfo.ts             # IPinfo geolocation & ASN
 │   │       ├── maxmind.ts            # MaxMind GeoIP2 / GeoLite2 Web Service
 │   │       ├── newsapi.ts            # NewsAPI real-time global news cross-reference
 │   │       ├── numverify.ts          # Numverify / APILayer phone validation
+│   │       ├── nvd.ts                # NVD NIST 2.0 CVE search, CVSS & CWEs
+│   │       ├── osv.ts                # OSV.dev package vulnerability database
 │   │       ├── otx.ts                # AlienVault OTX threat pulses
 │   │       ├── phishstats.ts         # PhishStats community phishing feed
 │   │       ├── safebrowsing.ts       # Google Safe Browsing API
@@ -384,28 +450,35 @@ When all Groq models fail, a deterministic fallback handles:
 │   ├── domain.ts                     # Domain lookup endpoint
 │   ├── email.ts                      # Email validation & MX check endpoint
 │   ├── file.ts                       # File SHA256, magic bytes & multi-AV endpoint
+│   ├── hackertarget.ts               # HackerTarget DNS/host/ASN/port recon endpoint
 │   ├── ip.ts                         # IP intelligence & threat scoring endpoint
 │   ├── phishing-intel.ts             # PhishGuard full URL correlation endpoint
 │   ├── phone.ts                      # Phone intelligence (Veriphone + Numverify + Abstract)
-│   └── url.ts                        # URL threat provider endpoint
+│   ├── url.ts                        # URL threat provider endpoint
+│   └── vulnerability.ts              # Vulnerability Intel: CVE search, details, package-scan, recent
 ├── server/
 │   └── dev-middleware.ts             # Vite plugin: routes /api/* to api/ handlers in dev
 ├── src/
 │   ├── components/
 │   │   ├── AppShell.tsx              # Sidebar navigation, user avatar, route links
+│   │   ├── intel/                    # IntelToolCard — shared intel result card
 │   │   ├── layout/                   # PageHeader, PremiumCard layout containers
 │   │   ├── threat/                   # ThreatScorePanel, AdvancedDetailsPanel, ResultActions
 │   │   └── ui/                       # shadcn/ui components (Card, Button, Badge, Input, etc.)
 │   ├── contexts/
 │   │   └── AuthContext.tsx           # Firebase Auth context & protected route guard
+│   ├── hooks/
+│   │   └── use-mobile.tsx            # Responsive breakpoint hook
 │   ├── lib/
 │   │   ├── api.ts                    # Frontend API call helpers (typed fetch wrappers)
 │   │   ├── firebase.ts               # Firebase app initialization
+│   │   ├── firebase-errors.ts        # Firebase Auth error → friendly message mapper
 │   │   ├── firestore.ts              # Firestore CRUD: chat history, scan history, profile
-│   │   ├── intel-api.ts              # OSINT tool client wrapper (phishing, ip, phone, file)
+│   │   ├── intel-api.ts              # OSINT tool client wrapper (phishing, ip, phone, file, vuln)
 │   │   ├── scan-history.ts           # Local + cloud scan history state management
-│   │   └── threat-score.ts           # Shared scoring functions: scoreIp, scorePhone, scoreEmail,
-│   │                                 # scoreFile, scorePhish, buildThreat, riskFromScore
+│   │   ├── threat-score.ts           # Shared scoring functions: scoreIp, scorePhone, scoreEmail,
+│   │   │                             # scoreFile, scorePhish, buildThreat, riskFromScore
+│   │   └── utils.ts                  # Tailwind `cn()` class-merge helper
 │   └── pages/
 │       ├── Account.tsx               # User profile, avatar upload, password change
 │       ├── Chat.tsx                  # AI Security Assistant (normal chat + background investigation)
@@ -416,12 +489,14 @@ When all Groq models fail, a deterministic fallback handles:
 │       ├── HistoryPage.tsx           # Scan history viewer with type filters
 │       ├── Home.tsx                  # News Misinformation Analyzer + NewsAPI cards
 │       ├── IpIntelligence.tsx        # IP geolocation, ASN, threat scoring, source breakdown
+│       ├── Landing.tsx               # 3D Main Landing Page with Groq stack & mobile waitlist
 │       ├── Login.tsx                 # Firebase Email/Password + Google OAuth sign-in
 │       ├── Password.tsx              # Password strength, entropy scoring, generator
 │       ├── Phishing.tsx              # PhishGuard URL scanner (DNS, WHOIS, screenshot, feeds)
 │       ├── PhoneIntelligence.tsx     # Phone validation + Veriphone/Numverify/Abstract UI
 │       ├── Reports.tsx               # PDF & JSON report export manager
-│       └── ResetPassword.tsx         # Password reset email flow
+│       ├── ResetPassword.tsx         # Password reset email flow
+│       └── VulnerabilityIntelligence.tsx # CVE search, KEV, EPSS, package scanner, exports
 ├── .env.example                      # All supported environment variable names
 ├── index.html                        # HTML root with DefenSight metadata & favicon
 ├── package.json                      # Dependencies & npm scripts
@@ -468,6 +543,8 @@ MAXMIND_ACCOUNT_ID=your_maxmind_account_id
 MAXMIND_LICENSE_KEY=your_maxmind_license_key
 CENSYS_API_KEY=your_censys_pat
 IPINFO_TOKEN=your_ipinfo_token
+# IP_API_KEY=your_ipapi_pro_key            # optional — free endpoint works without it
+# HACKERTARGET_API_KEY=your_hackertarget_key  # optional — free quota ~50/day
 
 # ── DNS & WHOIS ───────────────────────────────────────
 DNSDUMPSTER_API_KEY=your_dnsdumpster_key
@@ -494,6 +571,10 @@ SCANII_API_SECRET=your_scanii_secret
 
 # ── News ──────────────────────────────────────────────
 NEWSAPI_API_KEY=your_newsapi_key
+
+# ── Vulnerability Intel ───────────────────────────────
+# Optional — raises the NVD NIST rate limit (OSV, CISA KEV & EPSS need no key)
+NVD_API_KEY=your_nvd_api_key
 
 # ── Misc ──────────────────────────────────────────────
 RAPIDAPI_KEY=your_rapidapi_key
@@ -526,10 +607,15 @@ All endpoints are located in `api/` and run as Vercel Serverless Functions or vi
 | `POST /api/email` | POST | `{ email }` | Email validation — MX, disposable, deliverability |
 | `POST /api/file` | POST | `{ filename, contentBase64, contentType }` | File AV scan — SHA256, VirusTotal, Hybrid Analysis, Scanii |
 | `POST /api/phishing-intel` | POST | `{ url }` | PhishGuard — DNS recon, 10+ threat feeds, WHOIS |
+| `POST /api/vulnerability` | POST | `{ action: "search", query, limit? }` | CVE search by ID/keyword (NVD + KEV + EPSS) |
+| `POST /api/vulnerability` | POST | `{ action: "details", cve_id }` | Full CVE details incl. OSV aliases & affected ranges |
+| `POST /api/vulnerability` | POST | `{ action: "package-scan", packages: [{ name, ecosystem, version? }] }` | OSV package vulnerability scan |
+| `POST /api/vulnerability` | POST | `{ action: "recent", limit?, days? }` | Recently published/updated CVEs |
 | `POST /api/analyze-email` | POST | `{ from, to, subject, body }` | Groq AI phishing email audit |
 | `POST /api/analyze-news` | POST | `{ content, source? }` | Fake-news detection — Groq + NewsAPI |
 | `POST /api/analyze-news` | POST | `{ messages: [...] }` | AI Assistant chat — Groq conversational mode |
 | `POST /api/analyze-phishing` | POST | `{ url }` | Lightweight URL heuristic scan |
+| `POST /api/hackertarget` | POST | `{ tool, target }` | HackerTarget recon toolkit (dnslookup, hostsearch, whois, reverseiplookup, geoip, aslookup, httpheaders, nmap, mtr, zonetransfer, …) |
 | `POST /api/domain` | POST | `{ domain }` | Domain lookup |
 | `POST /api/url` | POST | `{ url }` | URL threat scan |
 
@@ -561,6 +647,8 @@ DefenSight is built on a **zero-crash reliability** principle:
 | `MAXMIND_ACCOUNT_ID` + `MAXMIND_LICENSE_KEY` | MaxMind | IP Intel, PhishGuard |
 | `CENSYS_API_KEY` | Censys | IP Intel, PhishGuard |
 | `IPINFO_TOKEN` | IPinfo | IP Intelligence |
+| `IP_API_KEY` | IP-API.com | IP Intelligence (optional — free endpoint works without it) |
+| `HACKERTARGET_API_KEY` | HackerTarget | IP Intelligence (optional — free no-key quota ~50/day) |
 | `DNSDUMPSTER_API_KEY` | DNSDumpster | PhishGuard |
 | `WHOISFREAKS_API_KEY` | WhoisFreaks | PhishGuard |
 | `WHOISXML_API_KEY` | WhoisXML | PhishGuard |
@@ -574,6 +662,7 @@ DefenSight is built on a **zero-crash reliability** principle:
 | `DISIFY_API_KEY` | Disify | Email Lookup |
 | `SCANII_API_KEY` + `SCANII_API_SECRET` | Scanii | File Scanner |
 | `NEWSAPI_API_KEY` | NewsAPI | News Analyzer, AI Assistant |
+| `NVD_API_KEY` | NVD NIST | Vulnerability Intelligence (optional — raises rate limit) |
 | `RAPIDAPI_KEY` | RapidAPI | Numverify fallback |
 
 ---

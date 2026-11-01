@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { mapFirebaseError } from "@/lib/firebase-errors";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,16 @@ import { ShieldCheck, Mail, Lock, Loader2, User as UserIcon, AtSign, Eye, EyeOff
 
 export default function Login() {
   const { signIn, signUp, signInWithGoogle } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [isSignUp, setIsSignUp] = useState(() => searchParams.get("mode") === "signup");
+
+  useEffect(() => {
+    if (searchParams.get("mode") === "signup") {
+      setIsSignUp(true);
+    } else if (searchParams.get("mode") === "signin") {
+      setIsSignUp(false);
+    }
+  }, [searchParams]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);

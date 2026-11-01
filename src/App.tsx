@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import Login from "./pages/Login";
+import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import Phishing from "./pages/Phishing";
@@ -45,6 +46,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/landing" element={<Landing />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/intel" element={<Navigate to="/intel/ip" replace />} />
       <Route path="/intel/ip" element={<ProtectedRoute><IpIntelligence /></ProtectedRoute>} />
@@ -61,7 +63,7 @@ export default function App() {
       <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Account /></ProtectedRoute>} />
       <Route path="/account" element={<Navigate to="/settings" replace />} />
-      <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+      <Route path="/" element={<Landing />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
