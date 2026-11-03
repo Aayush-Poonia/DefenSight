@@ -225,7 +225,14 @@ export default function Phishing() {
           </div>
 
           <Card className="p-4 sm:p-5">
-            <h3 className="font-semibold mb-3">Risk Breakdown</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Risk Breakdown</h3>
+              {result.risk_breakdown?.length ? (
+                <span className="text-xs text-muted-foreground font-mono">
+                  Total: +{result.risk_breakdown.reduce((sum, b) => sum + b.points, 0)} pts
+                </span>
+              ) : null}
+            </div>
             {result.risk_breakdown?.length ? (
               <div className="space-y-2">
                 {result.risk_breakdown.map((b) => (

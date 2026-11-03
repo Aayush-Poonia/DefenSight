@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -666,14 +666,14 @@ export default function Chat() {
     toast.success("Chat history cleared");
   };
 
-  const toggleTelemetry = (msgId: string) => {
+  const toggleTelemetry = useCallback((msgId: string) => {
     setExpandedTelemetry((prev) => ({ ...prev, [msgId]: !prev[msgId] }));
-  };
+  }, []);
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
-  };
+  }, []);
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] max-w-5xl mx-auto gap-0">
@@ -798,258 +798,14 @@ export default function Chat() {
           {/* Message List */}
           <div className="space-y-6">
             {messages.map((msg) => (
-              <div key={msg.id} className={`flex gap-3 items-end ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-
-                {/* AI Avatar */}
-                {msg.role === "assistant" && (
-                  <div className="h-8 w-8 rounded-xl overflow-hidden ring-1 ring-accent/20 shrink-0 shadow-sm mb-0.5">
-                    <img src="/logo.png" alt="AI" className="h-full w-full object-cover" />
-                  </div>
-                )}
-
-                <div className={`max-w-[82%] sm:max-w-[76%] flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : "items-start"}`}>
-
-                  {/* Attached File Pill */}
-                  {msg.attachedFile && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
-                      <FileText className="h-3.5 w-3.5 text-accent shrink-0" />
-                      <span className="font-semibold text-foreground">{msg.attachedFile.name}</span>
-                      <span>({formatBytes(msg.attachedFile.size)})</span>
-                    </div>
-                  )}
-
-                  {/* Bubble */}
-                  <div
-                    className={`rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-sm ${
-                      msg.role === "user"
-                        ? "bg-accent text-accent-foreground rounded-br-sm"
-                        : "bg-card border border-border/60 text-foreground rounded-bl-sm"
-                    }`}
-                  >
-                    {/* Investigation Tracker */}
-                    {msg.isInvestigating && (
-                      <div className="space-y-3 py-0.5">
-                        <div className="flex items-center gap-2 font-semibold text-accent text-xs">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Background Threat Investigation in Progress...</span>
-                        </div>
-                        <div className="space-y-1.5 border-l-2 border-accent/30 pl-3 mt-1.5 text-[11px]">
-                          {msg.steps?.map((step) => (
-                            <div key={step.id} className="flex items-start gap-2">
-                              {step.status === "completed" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />}
-                              {step.status === "running" && <Loader2 className="h-3.5 w-3.5 text-accent animate-spin shrink-0 mt-0.5" />}
-                              {step.status === "pending" && <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />}
-                              {step.status === "error" && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />}
-                              <div>
-                                <div className={`font-medium ${
-                                  step.status === "running" ? "text-foreground font-semibold"
-                                  : step.status === "completed" ? "text-muted-foreground"
-                                  : "text-muted-foreground/60"
-                                }`}>{step.label}</div>
-                                {step.detail && <div className="text-[10px] font-mono text-accent/80 mt-0.5">{step.detail}</div>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Telemetry Summary Header */}
-                    {!msg.isInvestigating && msg.telemetrySummary && (
-                      <div className="mb-3 p-2.5 rounded-xl bg-background/60 border border-border/60 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30 text-[10px]">
-                            Scan Completed
-                          </Badge>
-                          {msg.telemetrySummary.scannedEntities.map((ent, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-[10px] font-mono">{ent}</Badge>
-                          ))}
-                        </div>
-                        {msg.telemetrySummary.maxThreatScore !== undefined && (
-                          <div className="flex items-center gap-1.5 text-[11px] font-mono font-semibold">
-                            <span className="text-muted-foreground">Risk:</span>
-                            <span className={
-                              (msg.telemetrySummary.maxThreatScore || 0) >= 70 ? "text-destructive"
-                              : (msg.telemetrySummary.maxThreatScore || 0) >= 30 ? "text-orange-400"
-                              : "text-emerald-500"
-                            }>
-                              {msg.telemetrySummary.maxThreatScore}/100 • {msg.telemetrySummary.riskLevel}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Message Content */}
-                  {msg.role === "assistant" ? (
-                      <div className="w-full min-w-0">
-                        {msg.content ? (
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              // Headings
-                              h1: ({ children }) => (
-                                <h1 className="text-base font-bold text-foreground mt-4 mb-2 pb-1 border-b border-border/50 first:mt-0">{children}</h1>
-                              ),
-                              h2: ({ children }) => (
-                                <h2 className="text-sm font-bold text-foreground mt-4 mb-2 first:mt-0">{children}</h2>
-                              ),
-                              h3: ({ children }) => (
-                                <h3 className="text-[13px] font-semibold text-foreground mt-3 mb-1.5 first:mt-0">{children}</h3>
-                              ),
-                              h4: ({ children }) => (
-                                <h4 className="text-[13px] font-semibold text-muted-foreground mt-2 mb-1 first:mt-0">{children}</h4>
-                              ),
-                              // Paragraphs — key fix: proper spacing so lines don't merge
-                              p: ({ children }) => (
-                                <p className="text-[13px] leading-relaxed text-foreground mb-3 last:mb-0 whitespace-pre-line">{children}</p>
-                              ),
-                              // Unordered lists
-                              ul: ({ children }) => (
-                                <ul className="my-2 ml-4 space-y-1 list-none">{children}</ul>
-                              ),
-                              // Ordered lists
-                              ol: ({ children }) => (
-                                <ol className="my-2 ml-4 space-y-1 list-none counter-reset-[item]">{children}</ol>
-                              ),
-                              // List items with custom bullet
-                              li: ({ children }) => (
-                                <li className="flex items-start gap-2 text-[13px] leading-relaxed text-foreground">
-                                  <span className="mt-[5px] h-1.5 w-1.5 rounded-full bg-accent shrink-0 flex-none" />
-                                  <span className="flex-1 min-w-0">{children}</span>
-                                </li>
-                              ),
-                              // Inline code
-                              code: ({ inline, children, ...props }: { inline?: boolean; children?: React.ReactNode }) =>
-                                inline ? (
-                                  <code className="px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-[11px] font-mono text-accent">
-                                    {children}
-                                  </code>
-                                ) : (
-                                  <code className="block w-full overflow-x-auto text-[11px] font-mono text-emerald-400 leading-relaxed" {...props}>
-                                    {children}
-                                  </code>
-                                ),
-                              // Code block wrapper
-                              pre: ({ children }) => (
-                                <pre className="my-3 p-3 rounded-xl bg-black/50 border border-border/60 overflow-x-auto text-[11px] font-mono leading-relaxed">
-                                  {children}
-                                </pre>
-                              ),
-                              // Blockquote
-                              blockquote: ({ children }) => (
-                                <blockquote className="my-3 pl-3 border-l-2 border-accent/50 text-muted-foreground italic text-[12px]">
-                                  {children}
-                                </blockquote>
-                              ),
-                              // Bold
-                              strong: ({ children }) => (
-                                <strong className="font-bold text-foreground">{children}</strong>
-                              ),
-                              // Italic
-                              em: ({ children }) => (
-                                <em className="italic text-muted-foreground">{children}</em>
-                              ),
-                              // Horizontal rule
-                              hr: () => (
-                                <hr className="my-4 border-border/50" />
-                              ),
-                              // Links
-                              a: ({ href, children }) => (
-                                <a
-                                  href={href}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-accent underline underline-offset-2 hover:text-accent/80 transition-colors break-all"
-                                >
-                                  {children}
-                                </a>
-                              ),
-                              // Tables
-                              table: ({ children }) => (
-                                <div className="my-3 overflow-x-auto rounded-xl border border-border/60">
-                                  <table className="w-full text-[12px] border-collapse">{children}</table>
-                                </div>
-                              ),
-                              thead: ({ children }) => (
-                                <thead className="bg-muted/60 text-foreground font-semibold">{children}</thead>
-                              ),
-                              tbody: ({ children }) => (
-                                <tbody className="divide-y divide-border/40">{children}</tbody>
-                              ),
-                              tr: ({ children }) => (
-                                <tr className="hover:bg-muted/30 transition-colors">{children}</tr>
-                              ),
-                              th: ({ children }) => (
-                                <th className="px-3 py-2 text-left font-semibold border-b border-border/60">{children}</th>
-                              ),
-                              td: ({ children }) => (
-                                <td className="px-3 py-2 text-muted-foreground">{children}</td>
-                              ),
-                            }}
-                          >
-                            {msg.content}
-                          </ReactMarkdown>
-                        ) : (
-                          loading && !msg.isInvestigating && (
-                            <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                              <span className="flex gap-1">
-                                <span className="h-1.5 w-1.5 rounded-full bg-accent/70 animate-bounce [animation-delay:0ms]" />
-                                <span className="h-1.5 w-1.5 rounded-full bg-accent/70 animate-bounce [animation-delay:120ms]" />
-                                <span className="h-1.5 w-1.5 rounded-full bg-accent/70 animate-bounce [animation-delay:240ms]" />
-                              </span>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    ) : (
-                      <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{msg.content}</p>
-                    )}
-                  </div>
-
-                  {/* Footer: timestamp + actions */}
-                  {msg.role === "assistant" && !msg.isInvestigating && msg.content && (
-                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-mono px-1">
-                      <span>{msg.timestamp || ""}</span>
-                      <button
-                        onClick={() => copyToClipboard(msg.content)}
-                        className="hover:text-foreground inline-flex items-center gap-1 transition-colors"
-                      >
-                        <Copy className="h-3 w-3" /> Copy
-                      </button>
-                      {msg.rawTelemetry && (
-                        <button
-                          onClick={() => toggleTelemetry(msg.id)}
-                          className="hover:text-accent inline-flex items-center gap-1 text-accent font-semibold transition-colors"
-                        >
-                          {expandedTelemetry[msg.id] ? (
-                            <><ChevronUp className="h-3 w-3" /> Hide Telemetry</>
-                          ) : (
-                            <><ChevronDown className="h-3 w-3" /> Raw Telemetry</>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {msg.role === "user" && msg.timestamp && (
-                    <span className="text-[10px] text-muted-foreground font-mono px-1">{msg.timestamp}</span>
-                  )}
-
-                  {/* Collapsible Telemetry */}
-                  {expandedTelemetry[msg.id] && msg.rawTelemetry && (
-                    <div className="w-full mt-1 p-3 rounded-xl bg-black/50 border border-border/60 text-[10px] font-mono text-emerald-400 overflow-x-auto max-h-60">
-                      <pre>{JSON.stringify(msg.rawTelemetry, null, 2)}</pre>
-                    </div>
-                  )}
-                </div>
-
-                {/* User Avatar */}
-                {msg.role === "user" && (
-                  <div className="h-8 w-8 rounded-xl bg-accent/20 text-accent border border-accent/30 grid place-items-center shrink-0 shadow-sm mb-0.5">
-                    <User className="h-4 w-4" />
-                  </div>
-                )}
-              </div>
+              <MessageItem
+                key={msg.id}
+                msg={msg}
+                isExpanded={Boolean(expandedTelemetry[msg.id])}
+                onToggleTelemetry={toggleTelemetry}
+                onCopy={copyToClipboard}
+                loading={loading}
+              />
             ))}
             <div ref={scrollRef} />
           </div>
@@ -1134,6 +890,265 @@ export default function Chat() {
     </div>
   );
 }
+
+// Message item component memoized so keystrokes in the input form do NOT re-render all markdown messages
+interface MessageItemProps {
+  msg: Message;
+  isExpanded: boolean;
+  onToggleTelemetry: (id: string) => void;
+  onCopy: (text: string) => void;
+  loading: boolean;
+}
+
+const markdownComponents = {
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <h1 className="text-base font-bold text-foreground mt-4 mb-2 pb-1 border-b border-border/50 first:mt-0">{children}</h1>
+  ),
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <h2 className="text-sm font-bold text-foreground mt-4 mb-2 first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h3 className="text-[13px] font-semibold text-foreground mt-3 mb-1.5 first:mt-0">{children}</h3>
+  ),
+  h4: ({ children }: { children?: React.ReactNode }) => (
+    <h4 className="text-[13px] font-semibold text-muted-foreground mt-2 mb-1 first:mt-0">{children}</h4>
+  ),
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="text-[13px] leading-relaxed text-foreground mb-3 last:mb-0 whitespace-pre-line">{children}</p>
+  ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="my-2 ml-4 space-y-1 list-none">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="my-2 ml-4 space-y-1 list-none counter-reset-[item]">{children}</ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li className="flex items-start gap-2 text-[13px] leading-relaxed text-foreground">
+      <span className="mt-[5px] h-1.5 w-1.5 rounded-full bg-accent shrink-0 flex-none" />
+      <span className="flex-1 min-w-0">{children}</span>
+    </li>
+  ),
+  code: ({ inline, children, ...props }: { inline?: boolean; children?: React.ReactNode }) =>
+    inline ? (
+      <code className="px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-[11px] font-mono text-accent">
+        {children}
+      </code>
+    ) : (
+      <code className="block w-full overflow-x-auto text-[11px] font-mono text-emerald-400 leading-relaxed" {...props}>
+        {children}
+      </code>
+    ),
+  pre: ({ children }: { children?: React.ReactNode }) => (
+    <pre className="my-3 p-3 rounded-xl bg-black/50 border border-border/60 overflow-x-auto text-[11px] font-mono leading-relaxed">
+      {children}
+    </pre>
+  ),
+  blockquote: ({ children }: { children?: React.ReactNode }) => (
+    <blockquote className="my-3 pl-3 border-l-2 border-accent/50 text-muted-foreground italic text-[12px]">
+      {children}
+    </blockquote>
+  ),
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong className="font-bold text-foreground">{children}</strong>
+  ),
+  em: ({ children }: { children?: React.ReactNode }) => (
+    <em className="italic text-muted-foreground">{children}</em>
+  ),
+  hr: () => (
+    <hr className="my-4 border-border/50" />
+  ),
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-accent underline underline-offset-2 hover:text-accent/80 transition-colors break-all"
+    >
+      {children}
+    </a>
+  ),
+  table: ({ children }: { children?: React.ReactNode }) => (
+    <div className="my-3 overflow-x-auto rounded-xl border border-border/60">
+      <table className="w-full text-[12px] border-collapse">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: { children?: React.ReactNode }) => (
+    <thead className="bg-muted/60 text-foreground font-semibold">{children}</thead>
+  ),
+  tbody: ({ children }: { children?: React.ReactNode }) => (
+    <tbody className="divide-y divide-border/40">{children}</tbody>
+  ),
+  tr: ({ children }: { children?: React.ReactNode }) => (
+    <tr className="hover:bg-muted/30 transition-colors">{children}</tr>
+  ),
+  th: ({ children }: { children?: React.ReactNode }) => (
+    <th className="px-3 py-2 text-left font-semibold border-b border-border/60">{children}</th>
+  ),
+  td: ({ children }: { children?: React.ReactNode }) => (
+    <td className="px-3 py-2 text-muted-foreground">{children}</td>
+  ),
+};
+
+const MessageItem = React.memo(function MessageItem({
+  msg,
+  isExpanded,
+  onToggleTelemetry,
+  onCopy,
+  loading,
+}: MessageItemProps) {
+  return (
+    <div className={`flex gap-3 items-end ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+      {/* AI Avatar */}
+      {msg.role === "assistant" && (
+        <div className="h-8 w-8 rounded-xl overflow-hidden ring-1 ring-accent/20 shrink-0 shadow-sm mb-0.5">
+          <img src="/logo.png" alt="AI" className="h-full w-full object-cover" />
+        </div>
+      )}
+
+      <div className={`max-w-[82%] sm:max-w-[76%] flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : "items-start"}`}>
+        {/* Attached File Pill */}
+        {msg.attachedFile && (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/60 border border-border/60 text-[11px] font-mono text-muted-foreground">
+            <FileText className="h-3.5 w-3.5 text-accent shrink-0" />
+            <span className="font-semibold text-foreground">{msg.attachedFile.name}</span>
+            <span>({formatBytes(msg.attachedFile.size)})</span>
+          </div>
+        )}
+
+        {/* Bubble */}
+        <div
+          className={`rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-sm ${
+            msg.role === "user"
+              ? "bg-accent text-accent-foreground rounded-br-sm"
+              : "bg-card border border-border/60 text-foreground rounded-bl-sm"
+          }`}
+        >
+          {/* Investigation Tracker */}
+          {msg.isInvestigating && (
+            <div className="space-y-3 py-0.5">
+              <div className="flex items-center gap-2 font-semibold text-accent text-xs">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Background Threat Investigation in Progress...</span>
+              </div>
+              <div className="space-y-1.5 border-l-2 border-accent/30 pl-3 mt-1.5 text-[11px]">
+                {msg.steps?.map((step) => (
+                  <div key={step.id} className="flex items-start gap-2">
+                    {step.status === "completed" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />}
+                    {step.status === "running" && <Loader2 className="h-3.5 w-3.5 text-accent animate-spin shrink-0 mt-0.5" />}
+                    {step.status === "pending" && <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/40 shrink-0 mt-0.5" />}
+                    {step.status === "error" && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />}
+                    <div>
+                      <div className={`font-medium ${
+                        step.status === "running" ? "text-foreground font-semibold"
+                        : step.status === "completed" ? "text-muted-foreground"
+                        : "text-muted-foreground/60"
+                      }`}>{step.label}</div>
+                      {step.detail && <div className="text-[10px] font-mono text-accent/80 mt-0.5">{step.detail}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Telemetry Summary Header */}
+          {!msg.isInvestigating && msg.telemetrySummary && (
+            <div className="mb-3 p-2.5 rounded-xl bg-background/60 border border-border/60 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30 text-[10px]">
+                  Scan Completed
+                </Badge>
+                {msg.telemetrySummary.scannedEntities.map((ent, idx) => (
+                  <Badge key={idx} variant="secondary" className="text-[10px] font-mono">{ent}</Badge>
+                ))}
+              </div>
+              {msg.telemetrySummary.maxThreatScore !== undefined && (
+                <div className="flex items-center gap-1.5 text-[11px] font-mono font-semibold">
+                  <span className="text-muted-foreground">Risk:</span>
+                  <span className={
+                    (msg.telemetrySummary.maxThreatScore || 0) >= 70 ? "text-destructive"
+                    : (msg.telemetrySummary.maxThreatScore || 0) >= 30 ? "text-orange-400"
+                    : "text-emerald-500"
+                  }>
+                    {msg.telemetrySummary.maxThreatScore}/100 • {msg.telemetrySummary.riskLevel}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Message Content */}
+          {msg.role === "assistant" ? (
+            <div className="w-full min-w-0">
+              {msg.content ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={markdownComponents}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              ) : (
+                loading && !msg.isInvestigating && (
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                    <span className="flex gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent/70 animate-bounce [animation-delay:0ms]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent/70 animate-bounce [animation-delay:120ms]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent/70 animate-bounce [animation-delay:240ms]" />
+                    </span>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{msg.content}</p>
+          )}
+        </div>
+
+        {/* Footer: timestamp + actions */}
+        {msg.role === "assistant" && !msg.isInvestigating && msg.content && (
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-mono px-1">
+            <span>{msg.timestamp || ""}</span>
+            <button
+              onClick={() => onCopy(msg.content)}
+              className="hover:text-foreground inline-flex items-center gap-1 transition-colors"
+            >
+              <Copy className="h-3 w-3" /> Copy
+            </button>
+            {msg.rawTelemetry && (
+              <button
+                onClick={() => onToggleTelemetry(msg.id)}
+                className="hover:text-accent inline-flex items-center gap-1 text-accent font-semibold transition-colors"
+              >
+                {isExpanded ? (
+                  <><ChevronUp className="h-3 w-3" /> Hide Telemetry</>
+                ) : (
+                  <><ChevronDown className="h-3 w-3" /> Raw Telemetry</>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+        {msg.role === "user" && msg.timestamp && (
+          <span className="text-[10px] text-muted-foreground font-mono px-1">{msg.timestamp}</span>
+        )}
+
+        {/* Collapsible Telemetry */}
+        {isExpanded && msg.rawTelemetry && (
+          <div className="w-full mt-1 p-3 rounded-xl bg-black/50 border border-border/60 text-[10px] font-mono text-emerald-400 overflow-x-auto max-h-60">
+            <pre>{JSON.stringify(msg.rawTelemetry, null, 2)}</pre>
+          </div>
+        )}
+      </div>
+
+      {/* User Avatar */}
+      {msg.role === "user" && (
+        <div className="h-8 w-8 rounded-xl bg-accent/20 text-accent border border-accent/30 grid place-items-center shrink-0 shadow-sm mb-0.5">
+          <User className="h-4 w-4" />
+        </div>
+      )}
+    </div>
+  );
+});
 
 function generateFallbackReport(
   prompt: string,

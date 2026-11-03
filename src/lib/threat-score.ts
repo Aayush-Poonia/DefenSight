@@ -24,14 +24,23 @@ export function riskFromScore(score: number): RiskLevel {
 
 export function buildThreat(
   breakdown: ScoreBreakdownItem[],
-  base = 5,
+  base = 0,
 ): ThreatScore {
-  const score = clampScore(base + breakdown.reduce((s, b) => s + b.points, 0));
+  const items: ScoreBreakdownItem[] = [];
+  if (base > 0) {
+    items.push({ factor: "Baseline risk factor", points: base });
+  }
+  for (const b of breakdown) {
+    if (b.points > 0) {
+      items.push(b);
+    }
+  }
+  const score = clampScore(items.reduce((s, b) => s + b.points, 0));
   return {
     score,
     risk_level: riskFromScore(score),
-    reasons: breakdown.filter((b) => b.points > 0).map((b) => b.factor),
-    breakdown: breakdown.filter((b) => b.points > 0),
+    reasons: items.map((b) => b.factor),
+    breakdown: items,
   };
 }
 
@@ -132,7 +141,7 @@ export function scoreIp(input: {
       points: 8,
     });
   }
-  return buildThreat(breakdown, 8);
+  return buildThreat(breakdown, 0);
 }
 
 export function scorePhone(input: {
@@ -147,12 +156,13 @@ export function scorePhone(input: {
 }): ThreatScore {
   const breakdown: ScoreBreakdownItem[] = [];
 
-  // --- Validation signals (Numverify + Abstract + Veriphone cross-check) ---
+  // --- Validation signals (Abstract + Veriphone + libphonenumber-js cross-check) ---
   const validSignals = [input.valid, input.veriphone_valid].filter((v) => v !== null && v !== undefined);
   const anyInvalid = validSignals.some((v) => v === false);
-  const allValid = validSignals.length > 0 && validSignals.every((v) => v === true);
 
-  if (anyInvalid) breakdown.push({ factor: "Number failed validation (multi-source)", points: 40 });
+  if (anyInvalid || input.valid === false || input.veriphone_valid === false) {
+    breakdown.push({ factor: "Number failed validation", points: 40 });
+  }
 
   // --- VoIP / virtual line detection (any source signals VoIP = flag it) ---
   const vt = (input.veriphone_type || "").toLowerCase();
@@ -173,7 +183,7 @@ export function scorePhone(input: {
 
   // --- Veriphone: unknown type on a non-mobile number raises suspicion ---
   if (vt === "unknown" && input.is_non_geographical === true) {
-    breakdown.push({ factor: "Unknown non-geographic line type (Veriphone)", points: 10 });
+    breakdown.push({ factor: "Unknown non-geographic line type", points: 10 });
   }
 
   // --- Provider risk score (Abstract) ---
@@ -184,11 +194,7 @@ export function scorePhone(input: {
     });
   }
 
-  // --- Validation-friendly baseline — never claim "scammer" ---
-  if (allValid && breakdown.length === 0) {
-    return buildThreat([{ factor: "Number structure validated (multi-source)" , points: 0 }], 5);
-  }
-  return buildThreat(breakdown, allValid ? 8 : 20);
+  return buildThreat(breakdown, 0);
 }
 
 export function scoreEmail(input: {
@@ -211,7 +217,7 @@ export function scoreEmail(input: {
     breakdown.push({ factor: "Poor deliverability", points: 25 });
   }
   if (input.free_provider) breakdown.push({ factor: "Free email provider", points: 8 });
-  return buildThreat(breakdown, 6);
+  return buildThreat(breakdown, 0);
 }
 
 export function scoreFile(input: {
@@ -251,7 +257,7 @@ export function scoreFile(input: {
       points: Math.min(45, 30 + input.threatFoxHits * 5),
     });
   }
-  return buildThreat(breakdown, 4);
+  return buildThreat(breakdown, 0);
 }
 
 export function scorePhish(input: {
@@ -353,5 +359,5 @@ export function scorePhish(input: {
   if (input.manySubdomains) {
     breakdown.push({ factor: "HackerTarget: large subdomain/host footprint", points: 6 });
   }
-  return buildThreat(breakdown, 10);
+  return buildThreat(breakdown, 0);
 }

@@ -30,6 +30,7 @@ export type IpIntelResult = {
 export type PhoneIntelResult = {
   phone: string;
   valid: boolean | null;
+  validation_source?: string | null;
   country: string | null;
   carrier: string | null;
   line_type: string | null;

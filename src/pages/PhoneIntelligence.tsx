@@ -65,7 +65,7 @@ export default function PhoneIntelligence() {
           <Phone className="h-7 w-7" /> Phone Intelligence
         </h1>
         <p className="text-muted-foreground mt-1">
-          Numverify + Abstract Phone — carrier, line type, and validation
+          Abstract Phone Intelligence with Veriphone & libphonenumber-js fallback
         </p>
       </div>
 
@@ -85,7 +85,7 @@ export default function PhoneIntelligence() {
       {loading && (
         <Card className="p-8 flex flex-col items-center gap-3 text-muted-foreground">
           <Loader2 className="h-7 w-7 animate-spin text-accent" />
-          <span className="text-sm">Querying Numverify & Abstract Phone…</span>
+          <span className="text-sm">Querying Abstract Phone (Veriphone & libphonenumber-js fallback)…</span>
         </Card>
       )}
 
@@ -105,6 +105,20 @@ export default function PhoneIntelligence() {
                 label="Valid Number"
                 value={result.valid == null ? "—" : result.valid ? "Valid" : "Invalid"}
               />
+              {result.validation_source && (
+                <FieldRow
+                  label="Validation Source"
+                  value={
+                    result.validation_source === "abstract"
+                      ? "Abstract API (Primary)"
+                      : result.validation_source === "veriphone"
+                        ? "Veriphone (Fallback 1)"
+                        : result.validation_source === "libphonenumber-js"
+                          ? "libphonenumber-js (Fallback 2)"
+                          : result.validation_source
+                  }
+                />
+              )}
               <FieldRow label="Carrier" value={result.carrier} />
               <FieldRow label="Country" value={result.country} />
               <FieldRow label="Region" value={result.region} />

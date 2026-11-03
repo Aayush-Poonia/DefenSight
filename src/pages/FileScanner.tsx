@@ -24,18 +24,29 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 export default function FileScanner() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<FileScanResult | null>(null);
+
+  const isTooLarge = Boolean(file && file.size > MAX_FILE_SIZE_BYTES);
 
   const run = async () => {
     if (!file) {
       toast.error("Select a file to scan");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File too large (max 5MB)");
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(`File too large (maximum allowed size is ${MAX_FILE_SIZE_MB}MB)`);
       return;
     }
     setLoading(true);
@@ -71,19 +82,39 @@ export default function FileScanner() {
           <FileSearch className="h-7 w-7" /> File Scanner
         </h1>
         <p className="text-muted-foreground mt-1">
-          Scanii, VirusTotal, Hybrid Analysis, MalwareBazaar, and ThreatFox
+          Scanii, VirusTotal, Hybrid Analysis, MalwareBazaar, and ThreatFox — Maximum allowed file size: <span className="font-semibold text-foreground">{MAX_FILE_SIZE_MB} MB</span>
         </p>
       </div>
 
-      <Card className="p-4 sm:p-5 flex flex-col sm:flex-row gap-2">
-        <Input
-          type="file"
-          className="h-11 file:mr-3"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
-        <Button className="h-11 min-w-[120px]" disabled={loading} onClick={run}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Scan"}
-        </Button>
+      <Card className="p-4 sm:p-5 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            type="file"
+            className="h-11 file:mr-3 cursor-pointer"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <Button
+            className="h-11 min-w-[120px]"
+            disabled={loading || isTooLarge}
+            onClick={run}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Scan"}
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground pt-1">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+            <span>Maximum size allowed: <strong className="text-foreground">{MAX_FILE_SIZE_MB} MB</strong> per file</span>
+          </span>
+
+          {file && (
+            <span className={isTooLarge ? "text-destructive font-semibold" : "text-muted-foreground"}>
+              Selected: {file.name} ({formatBytes(file.size)})
+              {isTooLarge && ` — Exceeds ${MAX_FILE_SIZE_MB}MB limit`}
+            </span>
+          )}
+        </div>
       </Card>
 
       {loading && (

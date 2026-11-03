@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { parsePhoneNumber, isValidPhoneNumber, type CountryCode } from "libphonenumber-js";
 import { handleCors, sendError, setCors } from "./_lib/cors.js";
 import { settleProvider } from "./_lib/http.js";
 import { fetchAbstractPhone } from "./_lib/providers/abstract.js";
@@ -16,11 +17,46 @@ function asObj(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
 }
 
-function pickValid(...vals: unknown[]): boolean | null {
-  for (const v of vals) {
-    if (typeof v === "boolean") return v;
+function checkLibphonenumber(phone: string, countryHint?: string) {
+  const norm = phone.startsWith("+") ? phone : `+${phone}`;
+  const hint = countryHint && countryHint.length === 2 ? (countryHint.toUpperCase() as CountryCode) : undefined;
+
+  let parsed = null;
+  try {
+    parsed = parsePhoneNumber(norm, hint);
+  } catch {
+    try {
+      parsed = parsePhoneNumber(phone, hint);
+    } catch {
+      parsed = null;
+    }
   }
-  return null;
+
+  if (parsed) {
+    const type = parsed.getType();
+    return {
+      valid: parsed.isValid(),
+      country: parsed.country || null,
+      country_prefix: parsed.countryCallingCode ? `+${parsed.countryCallingCode}` : null,
+      international: parsed.formatInternational(),
+      local: parsed.formatNational(),
+      e164: parsed.number,
+      line_type: type ? type.toLowerCase() : null,
+      is_voip: type === "VOIP",
+    };
+  }
+
+  const isValid = isValidPhoneNumber(norm) || isValidPhoneNumber(phone);
+  return {
+    valid: isValid,
+    country: null,
+    country_prefix: null,
+    international: null,
+    local: null,
+    e164: null,
+    line_type: null,
+    is_voip: null,
+  };
 }
 
 function riskToScore(level: string | null): number | null {
@@ -39,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const phone = validatePhone(req.body?.phone ?? req.body?.number);
     const countryHint = typeof req.body?.country === "string" ? req.body.country.trim() : undefined;
 
-    // Run all three providers in parallel
+    // Run remote providers in parallel
     const [numverify, abstract, veriphone] = await Promise.all([
       settleProvider("numverify", () => fetchNumverify(phone)),
       settleProvider("abstract_phone", () => fetchAbstractPhone(phone, countryHint)),
@@ -58,54 +94,83 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const abCountry = asObj(ab.country);
     const abFormat = asObj(ab.format);
 
-    // --- Merge validity across all three sources ---
-    const valid = pickValid(nv.valid, phoneVal.is_valid, ab.valid, vp?.phone_valid);
+    // libphonenumber-js local validation & parsing
+    const libPhone = checkLibphonenumber(phone, countryHint);
 
-    // --- Country (priority: Veriphone → Numverify → Abstract) ---
+    // --- Validation logic ---
+    // Primary: Abstract Phone
+    // Fallback 1: Veriphone
+    // Fallback 2: libphonenumber-js
+    let valid: boolean | null = null;
+    let validationSource = "none";
+
+    const abstractValid =
+      typeof phoneVal.is_valid === "boolean"
+        ? phoneVal.is_valid
+        : typeof ab.valid === "boolean"
+          ? Boolean(ab.valid)
+          : null;
+
+    if (abstract.ok && abstractValid !== null) {
+      valid = abstractValid;
+      validationSource = "abstract";
+    } else if (veriphone.ok && typeof vp?.phone_valid === "boolean") {
+      valid = vp.phone_valid;
+      validationSource = "veriphone";
+    } else {
+      valid = libPhone.valid;
+      validationSource = "libphonenumber-js";
+    }
+
+    // --- Country ---
     const country =
       str(vp?.country) ||
-      str(nv.country_name) ||
       str(phoneLoc.country_name) ||
       str(abCountry.name) ||
+      str(nv.country_name) ||
       str(vp?.country_code) ||
+      str(libPhone.country) ||
       str(nv.country_code) ||
       null;
 
-    // --- Carrier (Veriphone has the best carrier data) ---
+    // --- Carrier ---
     const carrier =
       str(vp?.carrier) ||
-      str(nv.carrier) ||
       str(phoneCarrier.name) ||
       str(ab.carrier) ||
+      str(nv.carrier) ||
       null;
 
-    // --- Line type (Veriphone phone_type is very reliable) ---
+    // --- Line type ---
     const lineType =
       str(vp?.phone_type) ||
-      str(nv.line_type) ||
       str(phoneCarrier.line_type) ||
       str(ab.type) ||
       str(ab.line_type) ||
+      str(libPhone.line_type) ||
+      str(nv.line_type) ||
       null;
 
     // --- Formatted numbers ---
     const international =
       str(vp?.international_number) ||
-      str(nv.international_format) ||
       str(phoneFmt.international) ||
       str(abFormat.international) ||
       str(ab.phone) ||
+      str(libPhone.international) ||
+      str(nv.international_format) ||
       null;
 
     const local =
       str(vp?.local_number) ||
-      str(nv.local_format) ||
       str(phoneFmt.national) ||
       str(abFormat.local) ||
       str(ab.local_format) ||
+      str(libPhone.local) ||
+      str(nv.local_format) ||
       null;
 
-    // --- Region (Veriphone phone_region = human-readable "City, State") ---
+    // --- Region ---
     const region =
       str(vp?.phone_region) ||
       str(nv.location) ||
@@ -114,13 +179,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       str(ab.region) ||
       null;
 
-    // --- Timezone (Veriphone returns array; pick first) ---
+    // --- Timezone ---
     const timezone =
       (vp?.timezone && vp.timezone.length > 0 ? vp.timezone[0] : null) ||
       str(phoneLoc.timezone) ||
       null;
 
-    // --- VoIP detection (any source that says VoIP wins) ---
+    // --- VoIP detection ---
     const isVoip =
       typeof phoneVal.is_voip === "boolean"
         ? phoneVal.is_voip
@@ -132,12 +197,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               ? true
               : vp?.geographical === false
                 ? true
-                : null;
+                : libPhone.is_voip === true
+                  ? true
+                  : null;
 
     const providerRisk =
       typeof ab.risk_score === "number" ? ab.risk_score : riskToScore(str(phoneRisk.risk_level));
 
-    // --- Score with all three sources combined ---
+    // --- Score with all sources combined ---
     const threat = scorePhone({
       valid,
       is_voip: isVoip,
@@ -158,6 +225,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const result = {
       phone,
       valid,
+      validation_source: validationSource,
       country,
       carrier,
       line_type: lineType,
@@ -170,18 +238,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       risk_level: threat.risk_level,
       threat,
       number_info: {
-        country_code: str(vp?.country_code) || str(nv.country_code) || str(phoneLoc.country_code) || str(abCountry.code) || null,
-        country_prefix: str(vp?.country_prefix) || str(nv.country_prefix) || str(phoneLoc.country_prefix) || str(abCountry.prefix) || null,
-        e164: str(vp?.e164) || null,
+        country_code: str(vp?.country_code) || str(phoneLoc.country_code) || str(abCountry.code) || str(libPhone.country) || str(nv.country_code) || null,
+        country_prefix: str(vp?.country_prefix) || str(phoneLoc.country_prefix) || str(abCountry.prefix) || str(libPhone.country_prefix) || str(nv.country_prefix) || null,
+        e164: str(vp?.e164) || str(libPhone.e164) || null,
         is_voip: isVoip,
         is_geographical: vp?.geographical ?? null,
         line_status: str(phoneVal.line_status),
         timezone,
-        note: "Validation & carrier enrichment via Veriphone, Numverify & AbstractAPI.",
+        note: `Validation verified via ${validationSource === "abstract" ? "Abstract API (Primary)" : validationSource === "veriphone" ? "Veriphone (Fallback 1)" : "libphonenumber-js (Fallback 2)"}.`,
       },
       sources: {
-        numverify: numverify.ok ? { ok: true } : { error: numverify.error },
-        abstract: abstract.ok ? { ok: true } : { error: abstract.error },
+        abstract: abstract.ok ? { ok: true, valid: abstractValid } : { error: abstract.error },
         veriphone: veriphone.ok
           ? {
               ok: true,
@@ -195,6 +262,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               timezone: vp?.timezone,
             }
           : { error: veriphone.error },
+        libphonenumber: { ok: true, valid: libPhone.valid },
+        validation_source: validationSource,
+        numverify: numverify.ok ? { ok: true } : { error: numverify.error },
       },
     };
 

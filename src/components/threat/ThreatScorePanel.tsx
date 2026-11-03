@@ -39,7 +39,12 @@ export function ThreatScorePanel({ threat }: { threat: ThreatScore | null | unde
 
       {threat.breakdown.length > 0 && (
         <div className="mt-4 pt-3 border-t border-border/60 space-y-2">
-          <div className="text-sm font-semibold">Score Breakdown</div>
+          <div className="flex items-center justify-between text-sm font-semibold">
+            <span>Score Breakdown</span>
+            <span className="text-xs text-muted-foreground font-mono">
+              Total: +{threat.breakdown.reduce((sum, b) => sum + b.points, 0)} pts
+            </span>
+          </div>
           {threat.breakdown.map((b) => (
             <div key={b.factor} className="flex justify-between gap-3 text-sm">
               <span className="text-muted-foreground">{b.factor}</span>
